@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 .env
 .ipynb_checkpoints/
+learns.db
+*.sqlite
+*.sqlite3
+learning-sessions.csv
+.coverage
+htmlcov/
