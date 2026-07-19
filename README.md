@@ -1,21 +1,15 @@
 # learns
 
-个人学习仓库，用来持续记录想学的内容、讨论结论、学习笔记、练习项目与阶段复盘。
+个人学习与实践仓库，采用根目录平铺结构。
 
-## 当前主题
+## 信息来源
 
-| 主题 | 目录 | 当前目标 |
-|---|---|---|
-| 英语 | `english/` | 建立输入、输出、词汇与复盘体系 |
-| 健身教练 | `fitness-coach/` | 学习训练原理、动作评估、编程与沟通 |
-| 金融投资 | `finance-investing/` | 学习财务基础、资产配置、估值与风险管理 |
-| Python | `python/` | 掌握语法、数据处理、自动化与项目实践 |
-| SQL | `sql/` | 掌握查询、建模、性能优化与真实案例 |
+`chat-history.md` 记录当前可见 ChatGPT 对话中明确聊过的方向；`github-history.md` 记录 GitHub 项目和提交历史验证过的实践；两者不混写。
 
-## 使用方法
+## 当前文件
 
-新想法先写进 `inbox.md`；确定要学后放进对应主题目录；每次学习记录在主题的 `notes.md`；可执行任务写进 `roadmap.md`；完成一个阶段后更新 `progress.md`；每周使用 `reviews/weekly-template.md` 做复盘。
+`english.md`、`fitness-coach.md`、`finance-investing.md`、`python.md`、`sql.md` 是当前对话明确确认的核心方向。
 
-## 记录原则
+`swift-apple.md`、`ai-agents.md`、`web-product.md`、`health-sleep.md`、`data-analytics.md` 是 GitHub 历史验证出的扩展方向。
 
-只记录真正理解的内容；笔记尽量包含例子、练习与自己的解释；资源只保留使用过或准备近期使用的；学习目标要能验证；任何主题都优先完成小项目，而不是无限收集资料。
+新想法先写入 `inbox.md`，总体状态维护在 `progress.md`，每周复盘使用 `weekly-review.md`。
