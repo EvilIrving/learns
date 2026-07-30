@@ -10,3 +10,7 @@ learns.db
 learning-sessions.csv
 .coverage
 htmlcov/
+packages/anything-llm
+packages/codex
+packages/grok-build
+packages/pi
