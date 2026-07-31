@@ -1,4 +1,88 @@
 <!DOCTYPE html>
+<!--
+================================================================================
+  本页来源：面试会话沉淀 · Deferred Tools 专题
+  仓库路径：packages/image/deferred-tools-demo.html
+  配套：    packages/image/deferred-tools-demo.svg（自动循环、无控件）
+  源码锚点（Codex）：
+    - codex/codex-rs/tools/src/tool_executor.rs          ToolExposure::{Direct,Deferred,...}
+    - codex/codex-rs/core/src/mcp_tool_exposure.rs       search 开时 MCP → Deferred
+    - codex/codex-rs/core/src/tools/handlers/tool_search.rs  BM25 + ToolSearchOutput
+    - codex/codex-rs/core/src/tools/handlers/tool_search_spec.rs  next model call 文案
+    - codex/codex-rs/core/src/context/world_state/tools.rs   薄目录广告 ToolsState
+    - codex/codex-rs/core/src/tools/spec_plan.rs           finalize / append_tool_search
+    - codex/codex-rs/core/src/session/world_state.rs       DeferredToolWorldState
+================================================================================
+
+【会话里面试官问了什么 · 候选人答到哪】
+
+Q1. deferred tools 这个是什么东西？
+  A: Codex 的 ToolExposure 策略之一。工具已注册、可 dispatch，但默认不进
+     本轮 model-visible tools 列表；靠 search 元数据后发现。区别于 Direct /
+     DirectModelOnly / Hidden。不是「没实现」，是「曝光延迟」。
+
+Q2. 你们在项目里面用这个干什么？
+  A: 提效 coding agent 主路径是 shell/apply-patch（Direct 常驻）。
+     Deferred 吃的是 MCP / Apps(Connectors) 长尾扩展面：装很多连接器时，
+     别让默认改代码 turn 被全量 schema 拖垮。业务目标：主路径稳 + 扩展可长
+     + 成本可控 + 安全仍走 policy/sandbox。
+
+Q3. BM25 是什么？命中后暴露到下一轮，会不会已经晚了？
+  A: BM25 = 经典全文检索打分（Best Matching 25），本地对 name/desc/参数字段
+     文本建索引，不是向量检索。
+     「下一轮」= 同一次 agent loop 里的下一拍 model completion，不是用户
+     下一句消息。主路径不走 search，不晚；偶发 MCP 多付 1 拍 discovery 税。
+
+Q4. 模型怎么知道要 search？怎么知道有没有 Jira？没接会不会白 search？
+  A: 三通道广告（不是两眼一抹黑）：
+     1) tool_search 本身是 Direct，description 教模型「有未 upfront 的工具」；
+     2) source listing 或 world-state ToolsState：namespace + 短描述薄目录；
+     3) 用户意图 / 显式 App 链接。
+     索引只含当前会话已注册 Deferred。没装不进 registry/广告/索引；
+     乱搜最多空结果一拍，变不出未注册工具。
+
+Q5. 到底知道还是不知道？（「defer=看不见」vs「会话注册了不是瞎猜」矛盾感）
+  A: 两层「知道」别混：
+     - 知道有哪些桶（薄目录广告）→ 是
+     - 知道每个 API 完整 schema/参数 → search 之前否
+     - 能力边界由 host registry 定 → 不是模型幻想注册表
+     类比：前台贴楼层目录，办公室门锁着；search 要钥匙（schema）。
+
+Q6. 广告不就是 20 个名字吗？100 token 还 search 个屁？
+  A: 算错账。对比的不是「20 个名字 vs search」，而是
+     「每轮 20 MCP × 每桶十余 function × 完整 JSON schema（可数万 token）」
+     vs「薄目录一两百 token + 命中后再发小批量 schema」。
+     名字不贵；说明书贵。工具选择质量、长会话主路径也受害。
+     若总共就几个 tool，上 deferred 是过度设计 → 应 Direct。
+
+Q7. 做这些时想过业务吗？公司都这么干？
+  A: 批评成立——前面一度机制盖过业务。正经顺序应是：
+     用户任务断点 → 谁痛 → 安全/产品约束 → 再选 Direct/Deferred/sticky。
+     Deferred 是「连接器变多后主路径被工具面打疼」的闸，不是先发明 BM25。
+     高频必用应升 Direct/sticky；广告烂导致空搜是产品没做完。
+
+Q8. 弄个 Demo / 实例 / SVG 动画：20 个 MCP 怎么拼、怎么发现、怎么调？
+  A: 产出 image/deferred-tools-demo.svg（5 幕 CSS 自动循环）+ 本 HTML。
+     20 个真实向名：github/gitlab/jira/linear/slack/notion/confluence/
+     google_drive/gcal/sentry/datadog/pagerduty/stripe/snowflake/bigquery/
+     figma/playwright/browserbase/postgres/filesystem。
+     5 幕：注册 → 两通道可见性 → 用户要 Jira → tool_search/BM25 → 下一拍 call。
+
+Q9. 没有停顿/暂停，怎么操作？
+  A: 本 HTML 改为可操作版：默认暂停第 1 幕；播放/暂停、上一幕/下一幕、
+     点步骤跳转、键盘 Space/←→/1-5/R；自动播放每幕 5s，末幕播完自停。
+     SVG 保留为无控件自动循环备份。
+
+Q10. 把当前会话做了啥、问了啥先注释进 HTML。
+  A: 即本注释块。
+
+================================================================================
+【本页怎么用】
+  open packages/image/deferred-tools-demo.html
+  默认停在第 1 幕；讲解用手动切幕；需要走流程再点播放。
+  面试口述收口：扩展可长 · 默认改码 tools 面干净 · 省 schema 不是省名字。
+================================================================================
+-->
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
