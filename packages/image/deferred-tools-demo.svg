@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 780" width="1280" height="780"
+     role="img" aria-label="Deferred tools: catalog, search, expose, call">
+  <defs>
+    <style>
+      <![CDATA[
+      :root { font-family: "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif; }
+      .bg { fill: #0b1020; }
+      .panel { fill: #121a2f; stroke: #2a3a5c; stroke-width: 1.5; }
+      .panel-title { fill: #8fb4ff; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; }
+      .label { fill: #c9d4ef; font-size: 13px; }
+      .muted { fill: #7f8db0; font-size: 12px; }
+      .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+      .chip { fill: #1a2540; stroke: #3a4f7a; stroke-width: 1; }
+      .chip-text { fill: #d7e2ff; font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+      .chip-hot { fill: #1f3a2a; stroke: #3dcf8e; }
+      .chip-hot-text { fill: #baf7d6; }
+      .chip-dim { opacity: 0.35; }
+      .direct { fill: #1a2f4a; stroke: #5b9dff; }
+      .direct-text { fill: #cfe3ff; font-size: 12px; font-family: ui-monospace, Menlo, monospace; }
+      .title { fill: #f2f6ff; font-size: 22px; font-weight: 700; }
+      .subtitle { fill: #9aabd0; font-size: 13px; }
+      .step-pill { fill: #243356; }
+      .step-on { fill: #3d7eff; }
+      .step-text { fill: #e8efff; font-size: 12px; font-weight: 600; }
+      .bubble { fill: #1c2742; stroke: #4a628f; }
+      .bubble-text { fill: #e8efff; font-size: 13px; }
+      .arrow { fill: none; stroke: #6ea0ff; stroke-width: 2.5; stroke-linecap: round; }
+      .arrow-head { fill: #6ea0ff; }
+      .ok { fill: #2dd98a; }
+      .warn { fill: #ffcc66; }
+      .cost { fill: #ff8f8f; font-size: 12px; font-weight: 700; }
+      .cost-ok { fill: #7dffb3; font-size: 12px; font-weight: 700; }
+      .hl-box { fill: none; stroke: #3dcf8e; stroke-width: 2; stroke-dasharray: 6 4; }
+      .scene { opacity: 0; }
+      /* Timeline: 0-20s loop, 5 scenes x ~4s */
+      #s0 { animation: show 20s linear infinite; }
+      #s1 { animation: show 20s linear infinite; animation-delay: -4s; }
+      #s2 { animation: show 20s linear infinite; animation-delay: -8s; }
+      #s3 { animation: show 20s linear infinite; animation-delay: -12s; }
+      #s4 { animation: show 20s linear infinite; animation-delay: -16s; }
+      @keyframes show {
+        0%, 18% { opacity: 1; }
+        20%, 100% { opacity: 0; }
+      }
+      #progress > rect {
+        animation: bar 20s linear infinite;
+      }
+      @keyframes bar {
+        from { width: 0; }
+        to { width: 1160px; }
+      }
+      .pulse {
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.45; }
+        50% { opacity: 1; }
+      }
+      .scan {
+        animation: scan 1.5s ease-in-out infinite;
+      }
+      @keyframes scan {
+        0% { transform: translateY(0); opacity: 0.2; }
+        50% { opacity: 0.9; }
+        100% { transform: translateY(120px); opacity: 0.2; }
+      }
+      .fly {
+        animation: fly 1.8s ease-in-out infinite;
+      }
+      @keyframes fly {
+        0% { opacity: 0; transform: translate(0, 0); }
+        30% { opacity: 1; }
+        100% { opacity: 0; transform: translate(180px, -40px); }
+      }
+      ]]>
+    </style>
+
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="arrow-head"/>
+    </marker>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect class="bg" width="1280" height="780" rx="0"/>
+  <text class="title" x="40" y="42">Deferred Tools 实机时序 · 20 Connectors 会话</text>
+  <text class="subtitle" x="40" y="66">业务场景：改代码为主，偶发要建 Jira 单 · 省的是「每轮全量 schema」，不是 20 个名字</text>
+
+  <!-- step rail -->
+  <g id="steps" transform="translate(40, 88)">
+    <rect class="step-pill" x="0" y="0" width="220" height="30" rx="15"/>
+    <rect class="step-pill" x="235" y="0" width="220" height="30" rx="15"/>
+    <rect class="step-pill" x="470" y="0" width="220" height="30" rx="15"/>
+    <rect class="step-pill" x="705" y="0" width="220" height="30" rx="15"/>
+    <rect class="step-pill" x="940" y="0" width="220" height="30" rx="15"/>
+    <text class="step-text" x="110" y="20" text-anchor="middle">1 注册 20 个 MCP</text>
+    <text class="step-text" x="345" y="20" text-anchor="middle">2 模型看见什么</text>
+    <text class="step-text" x="580" y="20" text-anchor="middle">3 用户要 Jira</text>
+    <text class="step-text" x="815" y="20" text-anchor="middle">4 tool_search</text>
+    <text class="step-text" x="1050" y="20" text-anchor="middle">5 下一拍调用</text>
+  </g>
+
+  <g id="progress" transform="translate(40, 128)">
+    <rect x="0" y="0" width="1160" height="4" rx="2" fill="#243356"/>
+    <rect x="0" y="0" width="0" height="4" rx="2" fill="#3d7eff"/>
+  </g>
+
+  <!-- ===================== SCENE 0: registry ===================== -->
+  <g id="s0" class="scene">
+    <rect class="step-on" x="40" y="88" width="220" height="30" rx="15" opacity="0.95"/>
+    <text class="step-text" x="150" y="108" text-anchor="middle">1 注册 20 个 MCP</text>
+
+    <rect class="panel" x="40" y="150" width="740" height="560" rx="12"/>
+    <text class="panel-title" x="60" y="178">HOST REGISTRY · 会话启动时真实装上的 Connectors（市面常见 + 内部向）</text>
+    <text class="muted" x="60" y="200">每个 MCP ≠ 1 个 tool。下面每个名字背后大约 8–20 个 function + 完整 JSON schema</text>
+
+    <!-- 20 chips in grid -->
+    <g transform="translate(60, 220)" class="mono">
+      <!-- row1 -->
+      <rect class="chip" x="0" y="0" width="150" height="34" rx="8"/><text class="chip-text" x="12" y="22">github</text>
+      <rect class="chip" x="165" y="0" width="150" height="34" rx="8"/><text class="chip-text" x="177" y="22">gitlab</text>
+      <rect class="chip" x="330" y="0" width="150" height="34" rx="8"/><text class="chip-text" x="342" y="22">jira</text>
+      <rect class="chip" x="495" y="0" width="150" height="34" rx="8"/><text class="chip-text" x="507" y="22">linear</text>
+      <!-- row2 -->
+      <rect class="chip" x="0" y="48" width="150" height="34" rx="8"/><text class="chip-text" x="12" y="70">slack</text>
+      <rect class="chip" x="165" y="48" width="150" height="34" rx="8"/><text class="chip-text" x="177" y="70">notion</text>
+      <rect class="chip" x="330" y="48" width="150" height="34" rx="8"/><text class="chip-text" x="342" y="70">confluence</text>
+      <rect class="chip" x="495" y="48" width="150" height="34" rx="8"/><text class="chip-text" x="507" y="70">google_drive</text>
+      <!-- row3 -->
+      <rect class="chip" x="0" y="96" width="150" height="34" rx="8"/><text class="chip-text" x="12" y="118">gcal</text>
+      <rect class="chip" x="165" y="96" width="150" height="34" rx="8"/><text class="chip-text" x="177" y="118">sentry</text>
+      <rect class="chip" x="330" y="96" width="150" height="34" rx="8"/><text class="chip-text" x="342" y="118">datadog</text>
+      <rect class="chip" x="495" y="96" width="150" height="34" rx="8"/><text class="chip-text" x="507" y="118">pagerduty</text>
+      <!-- row4 -->
+      <rect class="chip" x="0" y="144" width="150" height="34" rx="8"/><text class="chip-text" x="12" y="166">stripe</text>
+      <rect class="chip" x="165" y="144" width="150" height="34" rx="8"/><text class="chip-text" x="177" y="166">snowflake</text>
+      <rect class="chip" x="330" y="144" width="150" height="34" rx="8"/><text class="chip-text" x="342" y="166">bigquery</text>
+      <rect class="chip" x="495" y="144" width="150" height="34" rx="8"/><text class="chip-text" x="507" y="166">figma</text>
+      <!-- row5 -->
+      <rect class="chip" x="0" y="192" width="150" height="34" rx="8"/><text class="chip-text" x="12" y="214">playwright</text>
+      <rect class="chip" x="165" y="192" width="150" height="34" rx="8"/><text class="chip-text" x="177" y="214">browserbase</text>
+      <rect class="chip" x="330" y="192" width="150" height="34" rx="8"/><text class="chip-text" x="342" y="214">postgres</text>
+      <rect class="chip chip-hot" x="495" y="192" width="150" height="34" rx="8" filter="url(#glow)"/>
+      <text class="chip-hot-text" x="507" y="214">filesystem</text>
+    </g>
+
+    <text class="label" x="60" y="490">每个 MCP 展开举例（jira 一桶 ≈ 12 tools）</text>
+    <rect class="panel" x="60" y="505" width="680" height="175" rx="10" fill="#0e1628"/>
+    <text class="mono" fill="#9ec0ff" x="80" y="535">jira.create_issue     params: project, summary, description, issuetype, labels…</text>
+    <text class="mono" fill="#9ec0ff" x="80" y="560">jira.search_issues    params: jql, maxResults, fields…</text>
+    <text class="mono" fill="#9ec0ff" x="80" y="585">jira.add_comment      params: issueId, body, visibility…</text>
+    <text class="mono" fill="#9ec0ff" x="80" y="610">jira.transition       params: issueId, transitionId…</text>
+    <text class="mono" fill="#7f8db0" x="80" y="640">… 还有 8 个 · 单 tool schema 常见 100–300 tokens · 20×12 ≈ 2.4万–7万 tokens / 每轮</text>
+    <text class="cost" x="80" y="665">若全量 Direct：每轮 tools 通道炸 · 这才是 deferred 的业务账</text>
+
+    <rect class="panel" x="800" y="150" width="440" height="560" rx="12"/>
+    <text class="panel-title" x="820" y="180">Exposure 标记</text>
+    <text class="label" x="820" y="215">shell / apply_patch / update_plan</text>
+    <rect class="direct" x="820" y="230" width="400" height="40" rx="8"/>
+    <text class="direct-text" x="840" y="255">ToolExposure::Direct  · 每轮常驻</text>
+
+    <text class="label" x="820" y="310">上面 20 个 MCP 的全部 function</text>
+    <rect class="chip-hot" x="820" y="325" width="400" height="40" rx="8"/>
+    <text class="chip-hot-text" x="840" y="350" font-family="ui-monospace,Menlo,monospace" font-size="12">ToolExposure::Deferred · 注册但不进 tools 数组</text>
+
+    <text class="muted" x="820" y="400">同时写入两份 host 侧数据：</text>
+    <text class="mono" fill="#cfe3ff" x="820" y="430">1) BM25 索引文档</text>
+    <text class="muted" x="840" y="452">name + description + 参数字段文本</text>
+    <text class="mono" fill="#cfe3ff" x="820" y="490">2) 薄广告目录</text>
+    <text class="muted" x="840" y="512">namespace + 一行短描述（≤250字）</text>
+    <text class="mono" fill="#cfe3ff" x="820" y="550">3) 完整 LoadableToolSpec</text>
+    <text class="muted" x="840" y="572">先扣着，search 命中再发</text>
+
+    <text class="label" x="820" y="630">关键：没装的 connector</text>
+    <text class="cost" x="820" y="655">不进 registry · 不进广告 · 搜不到</text>
+    <text class="muted" x="820" y="680">模型幻想「有 GitLab」也变不出 tool</text>
+  </g>
+
+  <!-- ===================== SCENE 1: what model sees ===================== -->
+  <g id="s1" class="scene">
+    <rect class="step-on" x="275" y="88" width="220" height="30" rx="15"/>
+    <text class="step-text" x="385" y="108" text-anchor="middle">2 模型看见什么</text>
+
+    <!-- tools channel -->
+    <rect class="panel" x="40" y="150" width="400" height="560" rx="12"/>
+    <text class="panel-title" x="60" y="180">通道 A · tools 数组（可调用）</text>
+    <text class="muted" x="60" y="205">只有这些能被 function call</text>
+
+    <rect class="direct" x="60" y="230" width="360" height="44" rx="8"/>
+    <text class="direct-text" x="80" y="257">shell</text>
+    <rect class="direct" x="60" y="286" width="360" height="44" rx="8"/>
+    <text class="direct-text" x="80" y="313">apply_patch</text>
+    <rect class="direct" x="60" y="342" width="360" height="44" rx="8"/>
+    <text class="direct-text" x="80" y="369">update_plan</text>
+    <rect class="chip-hot" x="60" y="398" width="360" height="44" rx="8" filter="url(#glow)"/>
+    <text class="chip-hot-text" x="80" y="425" font-family="ui-monospace,Menlo,monospace" font-size="13">tool_search  ← 发现入口</text>
+
+    <text class="cost" x="60" y="475">没有 jira.create_issue</text>
+    <text class="cost" x="60" y="500">没有 slack.post_message</text>
+    <text class="cost" x="60" y="525">没有 20×N 份 schema</text>
+    <text class="muted" x="60" y="565">本通道体积：核心工具 + 1 个 search</text>
+    <text class="cost-ok" x="60" y="590">≈ 几千 tokens，不是几万</text>
+    <text class="muted" x="60" y="640">模型现在：能改代码，不能直接调 Jira API</text>
+
+    <!-- prompt channel -->
+    <rect class="panel" x="460" y="150" width="780" height="560" rx="12"/>
+    <text class="panel-title" x="480" y="180">通道 B · 文本广告（world-state / tool_search description）</text>
+    <text class="muted" x="480" y="205">目录可见 · 说明书不可见 · 这就是「知道有啥桶」</text>
+
+    <rect x="480" y="225" width="740" height="300" rx="10" fill="#0e1628" stroke="#2a3a5c"/>
+    <text class="mono" fill="#7dffb3" x="500" y="255">## Deferred tool namespaces</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="285">- github: Repos, PRs, issues, checks</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="310">- gitlab: MRs and pipelines</text>
+    <text class="mono" fill="#baf7d6" x="500" y="335">- jira: Issues, sprints, transitions     ← 有这行才「知道有 Jira」</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="360">- linear: Product issues and cycles</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="385">- slack: Channels and messages</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="410">- notion / confluence / google_drive …</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="435">- sentry / datadog / pagerduty …</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="460">- stripe / snowflake / bigquery …</text>
+    <text class="mono" fill="#cfe3ff" x="500" y="485">- figma / playwright / browserbase / postgres / filesystem</text>
+    <text class="mono" fill="#7f8db0" x="500" y="515">（每条 ≤ 短描述，整表大约一两百 tokens，不是 20 份 API 文档）</text>
+
+    <text class="label" x="480" y="560">tool_search 自己的 description 还写着：</text>
+    <text class="bubble-text" x="480" y="590">“Some tools were not provided upfront — use tool_search to discover them.”</text>
+    <text class="muted" x="480" y="625">所以模型不是瞎猜：它看见薄目录 + 一个搜索工具 + 用户意图</text>
+    <text class="cost-ok" x="480" y="660">广告 ≈ 目录价 · 全量 Direct ≈ 说明书总价 · 差一个数量级</text>
+  </g>
+
+  <!-- ===================== SCENE 2: user intent ===================== -->
+  <g id="s2" class="scene">
+    <rect class="step-on" x="510" y="88" width="220" height="30" rx="15"/>
+    <text class="step-text" x="620" y="108" text-anchor="middle">3 用户要 Jira</text>
+
+    <rect class="panel" x="40" y="150" width="560" height="560" rx="12"/>
+    <text class="panel-title" x="60" y="180">用户消息</text>
+    <rect class="bubble" x="60" y="210" width="500" height="100" rx="12"/>
+    <text class="bubble-text" x="80" y="250">把 login 超时这个 bug 建一张 Jira，</text>
+    <text class="bubble-text" x="80" y="275">priority High，打上 backend 标签。</text>
+
+    <text class="label" x="60" y="350">模型本轮推理（示意）</text>
+    <text class="mono" fill="#cfe3ff" x="60" y="385">1. 任务要写 Jira issue</text>
+    <text class="mono" fill="#cfe3ff" x="60" y="415">2. tools 数组：无 jira.* 可调</text>
+    <text class="mono" fill="#cfe3ff" x="60" y="445">3. 广告目录：有 “jira: Issues…”</text>
+    <text class="mono" fill="#baf7d6" x="60" y="475">4. 结论：先 tool_search，不能瞎编参数</text>
+    <text class="mono" fill="#cfe3ff" x="60" y="505">5. 改代码工具这轮用不上 → 不调 shell</text>
+
+    <text class="muted" x="60" y="560">若广告里没有 jira？</text>
+    <text class="cost" x="60" y="590">正确：告诉用户未连接 · 或空搜一次后停</text>
+    <text class="cost" x="60" y="620">错误：幻想 create_issue 参数硬调</text>
+    <text class="muted" x="60" y="660">runtime 会拒掉未注册工具 · 变不出来</text>
+
+    <rect class="panel" x="620" y="150" width="620" height="560" rx="12"/>
+    <text class="panel-title" x="640" y="180">本轮 tools 仍只有这些</text>
+    <rect class="direct" x="640" y="210" width="280" height="40" rx="8"/>
+    <text class="direct-text" x="660" y="235">shell</text>
+    <rect class="direct" x="640" y="265" width="280" height="40" rx="8"/>
+    <text class="direct-text" x="660" y="290">apply_patch</text>
+    <rect class="chip-hot pulse" x="640" y="320" width="280" height="40" rx="8"/>
+    <text class="chip-hot-text" x="660" y="345" font-family="ui-monospace,Menlo,monospace" font-size="13">tool_search  ← 将调用</text>
+
+    <path class="arrow" d="M940 340 H1040" marker-end="url(#arrow)"/>
+    <rect class="bubble" x="1050" y="300" width="160" height="80" rx="10"/>
+    <text class="mono" fill="#baf7d6" x="1065" y="335">call</text>
+    <text class="mono" fill="#e8efff" x="1065" y="360">tool_search</text>
+
+    <text class="label" x="640" y="410">为什么不直接调 jira？</text>
+    <text class="muted" x="640" y="440">因为 schema 还没进 tools 数组。</text>
+    <text class="muted" x="640" y="465">API 协议要求：先看见 definition，再 function call。</text>
+    <text class="muted" x="640" y="490">所以「下一拍」不是用户下一句，</text>
+    <text class="muted" x="640" y="515">是 agent loop 里的下一次 model completion。</text>
+
+    <rect class="hl-box" x="640" y="550" width="560" height="120" rx="10"/>
+    <text class="label" x="660" y="585">业务含义</text>
+    <text class="bubble-text" x="660" y="615">主路径改代码的 90% turn：不付 Jira schema 税</text>
+    <text class="bubble-text" x="660" y="645">偶发要连 Jira：愿意多 1 拍 discovery</text>
+  </g>
+
+  <!-- ===================== SCENE 3: search ===================== -->
+  <g id="s3" class="scene">
+    <rect class="step-on" x="745" y="88" width="220" height="30" rx="15"/>
+    <text class="step-text" x="855" y="108" text-anchor="middle">4 tool_search</text>
+
+    <rect class="panel" x="40" y="150" width="400" height="560" rx="12"/>
+    <text class="panel-title" x="60" y="180">模型发出</text>
+    <rect class="bubble" x="60" y="210" width="360" height="120" rx="12"/>
+    <text class="mono" fill="#baf7d6" x="80" y="245">tool_search({</text>
+    <text class="mono" fill="#e8efff" x="100" y="275">query: "jira create issue high",</text>
+    <text class="mono" fill="#e8efff" x="100" y="300">limit: 5</text>
+    <text class="mono" fill="#baf7d6" x="80" y="325">})</text>
+
+    <text class="label" x="60" y="380">Host 侧（本地，不打 embedding）</text>
+    <text class="mono" fill="#cfe3ff" x="60" y="415">BM25 over search_text corpus</text>
+    <text class="muted" x="60" y="445">语料来自已注册 Deferred 工具：</text>
+    <text class="mono" fill="#9ec0ff" x="60" y="475">"jira create_issue project summary…"</text>
+    <text class="mono" fill="#9ec0ff" x="60" y="500">"jira search_issues jql…"</text>
+    <text class="mono" fill="#9ec0ff" x="60" y="525">"slack post_message channel…"</text>
+    <text class="mono" fill="#9ec0ff" x="60" y="550">"github create_pull_request…"</text>
+    <text class="muted" x="60" y="590">查询词命中稀有且相关 → 分高</text>
+    <text class="cost-ok" x="60" y="625">top-k 取出完整 LoadableToolSpec</text>
+    <text class="muted" x="60" y="660">空结果 = 白跑一拍，不会 magically 出工具</text>
+
+    <!-- BM25 visual -->
+    <rect class="panel" x="460" y="150" width="380" height="560" rx="12"/>
+    <text class="panel-title" x="480" y="180">BM25 排序（示意分数）</text>
+    <g transform="translate(480, 210)">
+      <rect class="chip-hot" x="0" y="0" width="340" height="44" rx="8"/>
+      <text class="chip-hot-text" x="16" y="28" font-family="ui-monospace,Menlo,monospace" font-size="12">jira.create_issue     12.4 ★</text>
+      <rect x="0" y="10" width="8" height="24" class="ok"/>
+
+      <rect class="chip" x="0" y="60" width="340" height="44" rx="8"/>
+      <text class="chip-text" x="16" y="88">jira.search_issues     6.1</text>
+      <rect class="chip" x="0" y="120" width="340" height="44" rx="8"/>
+      <text class="chip-text" x="16" y="148">jira.add_comment       3.2</text>
+      <rect class="chip chip-dim" x="0" y="180" width="340" height="44" rx="8"/>
+      <text class="chip-text" x="16" y="208">linear.create_issue    2.0</text>
+      <rect class="chip chip-dim" x="0" y="240" width="340" height="44" rx="8"/>
+      <text class="chip-text" x="16" y="268">github.create_issue    1.4</text>
+      <rect class="chip chip-dim" x="0" y="300" width="340" height="44" rx="8"/>
+      <text class="chip-text" x="16" y="328">slack.post_message     0.3</text>
+    </g>
+    <rect class="scan" x="480" y="210" width="340" height="6" fill="#3dcf8e" opacity="0.5"/>
+    <text class="muted" x="480" y="560">limit=5 → 只 promote 前几名</text>
+    <text class="muted" x="480" y="585">其余 200+ deferred tools 继续沉睡</text>
+    <text class="cost-ok" x="480" y="620">本拍只付 search 成本 · 不付全目录 schema</text>
+
+    <!-- output -->
+    <rect class="panel" x="860" y="150" width="380" height="560" rx="12"/>
+    <text class="panel-title" x="880" y="180">ToolSearchOutput → 回写 transcript</text>
+    <text class="muted" x="880" y="210">返回的是完整 schema，不是名字</text>
+    <rect x="880" y="230" width="340" height="280" rx="10" fill="#0e1628" stroke="#3dcf8e"/>
+    <text class="mono" fill="#7dffb3" x="900" y="260">tools: [</text>
+    <text class="mono" fill="#cfe3ff" x="910" y="290">Function {</text>
+    <text class="mono" fill="#e8efff" x="920" y="315">name: jira.create_issue</text>
+    <text class="mono" fill="#e8efff" x="920" y="340">desc: Create a Jira…</text>
+    <text class="mono" fill="#e8efff" x="920" y="365">params: {</text>
+    <text class="mono" fill="#9ec0ff" x="930" y="390">project: string</text>
+    <text class="mono" fill="#9ec0ff" x="930" y="415">summary: string</text>
+    <text class="mono" fill="#9ec0ff" x="930" y="440">priority: string</text>
+    <text class="mono" fill="#9ec0ff" x="930" y="465">labels: string[]</text>
+    <text class="mono" fill="#e8efff" x="920" y="490">}</text>
+    <text class="mono" fill="#7dffb3" x="900" y="515">] …</text>
+    <text class="label" x="880" y="545">协议语义</text>
+    <text class="bubble-text" x="880" y="575">exposes matching tools</text>
+    <text class="bubble-text" x="880" y="600">for the next model call</text>
+    <text class="muted" x="880" y="640">同一次 agent loop · 下一拍</text>
+    <path class="fly" d="M1020 660 h40" stroke="#3dcf8e" stroke-width="3"/>
+  </g>
+
+  <!-- ===================== SCENE 4: next turn call ===================== -->
+  <g id="s4" class="scene">
+    <rect class="step-on" x="980" y="88" width="220" height="30" rx="15"/>
+    <text class="step-text" x="1090" y="108" text-anchor="middle">5 下一拍调用</text>
+
+    <rect class="panel" x="40" y="150" width="400" height="560" rx="12"/>
+    <text class="panel-title" x="60" y="180">下一拍 tools 数组</text>
+    <text class="muted" x="60" y="205">核心 Direct + 新 promote 的 jira 工具</text>
+
+    <rect class="direct" x="60" y="230" width="360" height="40" rx="8"/>
+    <text class="direct-text" x="80" y="255">shell</text>
+    <rect class="direct" x="60" y="282" width="360" height="40" rx="8"/>
+    <text class="direct-text" x="80" y="307">apply_patch</text>
+    <rect class="direct" x="60" y="334" width="360" height="40" rx="8"/>
+    <text class="direct-text" x="80" y="359">tool_search</text>
+
+    <rect class="chip-hot" x="60" y="400" width="360" height="48" rx="8" filter="url(#glow)"/>
+    <text class="chip-hot-text" x="80" y="430" font-family="ui-monospace,Menlo,monospace" font-size="13">jira.create_issue  ← 新可见</text>
+    <rect class="chip" x="60" y="460" width="360" height="40" rx="8"/>
+    <text class="chip-text" x="80" y="485">jira.search_issues</text>
+    <rect class="chip" x="60" y="512" width="360" height="40" rx="8"/>
+    <text class="chip-text" x="80" y="537">jira.add_comment</text>
+
+    <text class="cost" x="60" y="590">其余 17 个 MCP 的 schema？</text>
+    <text class="cost-ok" x="60" y="620">仍然不在 tools 里 · 继续沉睡</text>
+    <text class="muted" x="60" y="655">要 slack 再 search 一次即可</text>
+
+    <rect class="panel" x="460" y="150" width="400" height="560" rx="12"/>
+    <text class="panel-title" x="480" y="180">模型真正调用</text>
+    <rect class="bubble" x="480" y="210" width="360" height="200" rx="12"/>
+    <text class="mono" fill="#baf7d6" x="500" y="245">jira.create_issue({</text>
+    <text class="mono" fill="#e8efff" x="520" y="275">project: "APP",</text>
+    <text class="mono" fill="#e8efff" x="520" y="300">summary: "login timeout",</text>
+    <text class="mono" fill="#e8efff" x="520" y="325">priority: "High",</text>
+    <text class="mono" fill="#e8efff" x="520" y="350">labels: ["backend"]</text>
+    <text class="mono" fill="#baf7d6" x="500" y="380">})</text>
+
+    <text class="label" x="480" y="450">执行路径（和 Direct 一样）</text>
+    <text class="mono" fill="#cfe3ff" x="480" y="485">router → handler → MCP server</text>
+    <text class="mono" fill="#cfe3ff" x="480" y="515">policy / sandbox 该拦还拦</text>
+    <text class="muted" x="480" y="555">Deferred 只改「何时看见 schema」</text>
+    <text class="muted" x="480" y="580">不改「执行是否受控」</text>
+    <text class="cost-ok" x="480" y="630">结果回注 → 回复用户 issue key</text>
+
+    <rect class="panel" x="880" y="150" width="360" height="560" rx="12"/>
+    <text class="panel-title" x="900" y="180">整段时序账本</text>
+    <text class="mono" fill="#9ec0ff" x="900" y="220">T0 装 20 MCP · Deferred</text>
+    <text class="mono" fill="#9ec0ff" x="900" y="250">T1 广告薄目录 + Direct 工具</text>
+    <text class="mono" fill="#9ec0ff" x="900" y="280">T2 用户：建 Jira</text>
+    <text class="mono" fill="#baf7d6" x="900" y="310">T3 tool_search（本拍）</text>
+    <text class="mono" fill="#baf7d6" x="900" y="340">T4 BM25 → schema 回写</text>
+    <text class="mono" fill="#7dffb3" x="900" y="370">T5 下一拍 call create_issue</text>
+    <text class="mono" fill="#7dffb3" x="900" y="400">T6 MCP 执行 · 回 issue key</text>
+
+    <text class="label" x="900" y="450">相对全量 Direct</text>
+    <text class="cost" x="900" y="485">少付：~20 MCP 全 schema × 每轮</text>
+    <text class="cost-ok" x="900" y="515">多付：1 次 search 模型步</text>
+    <text class="muted" x="900" y="555">主路径改代码 turn：</text>
+    <text class="cost-ok" x="900" y="580">连 search 都不必走</text>
+
+    <rect class="hl-box" x="900" y="610" width="320" height="70" rx="8"/>
+    <text class="bubble-text" x="915" y="640">业务一句话：</text>
+    <text class="bubble-text" x="915" y="665">扩展可长 · 默认改码面干净</text>
+  </g>
+
+  <text class="muted" x="40" y="750">文件：image/deferred-tools-demo.svg · 用浏览器打开自动循环 · 约 20s / 轮 · Chrome / Safari 均支持 CSS 动画</text>
+</svg>

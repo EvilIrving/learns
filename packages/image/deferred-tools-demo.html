@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deferred Tools Demo · 可操作</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2f;
+      --line: #2a3a5c;
+      --text: #c9d4ef;
+      --title: #f2f6ff;
+      --muted: #7f8db0;
+      --blue: #3d7eff;
+      --blue-soft: #5b9dff;
+      --green: #3dcf8e;
+      --green-soft: #baf7d6;
+      --cost: #ff8f8f;
+      --ok: #7dffb3;
+      --chip: #1a2540;
+      --direct: #1a2f4a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "SF Pro Text", "PingFang SC", "Helvetica Neue", system-ui, sans-serif;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 16px 20px 40px; }
+
+    /* ---- controls ---- */
+    .controls {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(11, 16, 32, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .row.space { justify-content: space-between; }
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      color: var(--title);
+      font-weight: 700;
+    }
+    .hint { color: var(--muted); font-size: 12px; }
+    kbd {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 11px;
+      background: #1a2540;
+      border: 1px solid #3a4f7a;
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #d7e2ff;
+    }
+    button {
+      appearance: none;
+      border: 1px solid #3a4f7a;
+      background: #1a2540;
+      color: #e8efff;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 36px;
+    }
+    button:hover { border-color: var(--blue-soft); background: #223055; }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary { background: var(--blue); border-color: #6ea0ff; color: #fff; }
+    button.primary.playing { background: #2a4a2f; border-color: var(--green); }
+    button.ghost { background: transparent; }
+
+    .steps { display: flex; flex-wrap: wrap; gap: 6px; }
+    .step-btn {
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      border-color: #33476f;
+      background: #1a2540;
+      color: #c9d4ef;
+    }
+    .step-btn.active {
+      background: var(--blue);
+      border-color: #7db0ff;
+      color: #fff;
+      box-shadow: 0 0 0 2px rgba(61, 126, 255, 0.25);
+    }
+    .step-btn.done { border-color: #3d6a50; color: var(--green-soft); }
+
+    .progress-wrap {
+      height: 6px;
+      background: #243356;
+      border-radius: 99px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3d7eff, #3dcf8e);
+      border-radius: 99px;
+      transition: width 0.15s linear;
+    }
+    .meta {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta strong { color: var(--green-soft); font-weight: 600; }
+
+    .links { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+    .links a { color: #7db0ff; font-size: 12px; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+
+    /* ---- stage ---- */
+    .stage {
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      min-height: 640px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .scene { display: none; animation: fadein 0.25s ease; }
+    .scene.active { display: block; }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+    .scene-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .scene-title h2 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--title);
+    }
+    .scene-title .biz {
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 720px;
+    }
+    .grid { display: grid; gap: 14px; }
+    .grid.two { grid-template-columns: 1.1fr 0.9fr; }
+    .grid.three { grid-template-columns: 1fr 1fr 1fr; }
+    .grid.split { grid-template-columns: 1fr 1.3fr; }
+    @media (max-width: 900px) {
+      .grid.two, .grid.three, .grid.split { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: #0e1628;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: #8fb4ff;
+      text-transform: uppercase;
+    }
+    .muted { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .mono {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #cfe3ff;
+      white-space: pre-wrap;
+    }
+    .cost { color: var(--cost); font-size: 13px; font-weight: 700; }
+    .ok { color: var(--ok); font-size: 13px; font-weight: 700; }
+    .label { color: var(--text); font-size: 13px; margin: 10px 0 6px; font-weight: 600; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      background: var(--chip);
+      border: 1px solid #3a4f7a;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px;
+      color: #d7e2ff;
+    }
+    .chip.hot {
+      background: #1f3a2a;
+      border-color: var(--green);
+      color: var(--green-soft);
+      box-shadow: 0 0 0 1px rgba(61, 207, 142, 0.25);
+    }
+    .chip.dim { opacity: 0.4; }
+    .chip.direct {
+      background: var(--direct);
+      border-color: var(--blue-soft);
+      color: #cfe3ff;
+    }
+
+    .tool-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #3a4f7a;
+      background: var(--direct);
+      margin-bottom: 8px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 13px;
+      color: #cfe3ff;
+    }
+    .tool-row.search {
+      background: #1f3a2a;
+      border-color: var(--green);
+      color: var(--green-soft);
+    }
+    .tool-row.promoted {
+      background: #1f3a2a;
+      border-color: var(--green);
+      color: var(--green-soft);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(61, 207, 142, 0.15); }
+      50% { box-shadow: 0 0 0 4px rgba(61, 207, 142, 0.12); }
+    }
+
+    .bubble {
+      background: #1c2742;
+      border: 1px solid #4a628f;
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #e8efff;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .score {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #3a4f7a;
+      background: var(--chip);
+      margin-bottom: 8px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px;
+    }
+    .score.top {
+      background: #1f3a2a;
+      border-color: var(--green);
+      color: var(--green-soft);
+    }
+    .score.dim { opacity: 0.45; }
+    .bar {
+      height: 6px;
+      background: #243356;
+      border-radius: 99px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      background: var(--green);
+      border-radius: 99px;
+    }
+    .hl {
+      border: 1.5px dashed var(--green);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .timeline li {
+      margin: 6px 0;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12.5px;
+      color: #9ec0ff;
+    }
+    .timeline li.now { color: var(--green-soft); font-weight: 700; }
+    .footer-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .paused-badge {
+      display: none;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffcc66;
+      border: 1px solid #8a6a2a;
+      background: #2a2410;
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+    body.is-paused .paused-badge { display: inline-block; }
+  </style>
+</head>
+<body class="is-paused">
+  <div class="wrap">
+    <div class="controls" role="region" aria-label="演示控制">
+      <div class="row space">
+        <div class="row">
+          <h1>Deferred Tools 时序 Demo</h1>
+          <span class="paused-badge">已暂停</span>
+        </div>
+        <div class="links">
+          <a href="./deferred-tools-demo.svg" target="_blank">纯 SVG（自动循环版）</a>
+        </div>
+      </div>
+
+      <div class="row">
+        <button type="button" id="btnPrev" title="上一幕 (← / P)">◀ 上一幕</button>
+        <button type="button" id="btnPlay" class="primary" title="播放/暂停 (Space)">▶ 播放</button>
+        <button type="button" id="btnNext" title="下一幕 (→ / N)">下一幕 ▶</button>
+        <button type="button" id="btnRestart" class="ghost" title="回第 1 幕 (R)">↺ 重来</button>
+        <span class="meta" id="status">第 <strong>1</strong> / 5 幕 · 暂停 · 每幕 <strong>5s</strong></span>
+      </div>
+
+      <div class="steps" id="stepButtons" role="tablist" aria-label="跳转到指定幕"></div>
+
+      <div class="progress-wrap" aria-hidden="true">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <div class="hint">
+        键盘：<kbd>Space</kbd> 播放/暂停 ·
+        <kbd>←</kbd>/<kbd>→</kbd> 或 <kbd>P</kbd>/<kbd>N</kbd> 切幕 ·
+        <kbd>1</kbd>–<kbd>5</kbd> 直达 ·
+        <kbd>R</kbd> 重来 ·
+        点上面步骤也可跳转 · 默认<strong>暂停在第 1 幕</strong>，看完再点下一幕
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <!-- SCENE 0 -->
+      <section class="scene active" data-scene="0" aria-label="第1幕">
+        <div class="scene-title">
+          <h2>1 · 注册 20 个 Connector</h2>
+          <div class="biz">会话启动：host 把真实装上的 MCP 写进 registry。每个名字 ≠ 1 个 tool，背后是一坨 function + schema。</div>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <h3>Host Registry · 市面常见 Connectors</h3>
+            <p class="muted">下面每个 bucket 背后大约 8–20 个 function。没装的根本不会出现在这里。</p>
+            <div class="chips" style="margin-top:12px">
+              <span class="chip">github</span><span class="chip">gitlab</span>
+              <span class="chip hot">jira</span><span class="chip">linear</span>
+              <span class="chip">slack</span><span class="chip">notion</span>
+              <span class="chip">confluence</span><span class="chip">google_drive</span>
+              <span class="chip">gcal</span><span class="chip">sentry</span>
+              <span class="chip">datadog</span><span class="chip">pagerduty</span>
+              <span class="chip">stripe</span><span class="chip">snowflake</span>
+              <span class="chip">bigquery</span><span class="chip">figma</span>
+              <span class="chip">playwright</span><span class="chip">browserbase</span>
+              <span class="chip">postgres</span><span class="chip">filesystem</span>
+            </div>
+            <div class="label">jira 一桶展开（举例）</div>
+            <div class="mono">jira.create_issue     project, summary, description, issuetype, labels…
+jira.search_issues    jql, maxResults, fields…
+jira.add_comment      issueId, body, visibility…
+jira.transition       issueId, transitionId…
+… 还有 ~8 个</div>
+            <p class="cost" style="margin-top:12px">单 tool schema 常见 100–300 tokens · 20×12 ≈ 2.4万–7万 / 每轮</p>
+            <p class="ok">这才是 deferred 要躲的账，不是 20 个名字 100 token。</p>
+          </div>
+          <div class="card">
+            <h3>Exposure 标记</h3>
+            <div class="label">核心改码 · Direct</div>
+            <div class="tool-row">shell / apply_patch / update_plan · 每轮常驻</div>
+            <div class="label">20 个 MCP 的全部 function · Deferred</div>
+            <div class="tool-row search">注册进 runtime · 但不进本轮 tools 数组</div>
+            <div class="label">Host 同时准备三份数据</div>
+            <div class="mono">1) BM25 索引：name + desc + 参数字段文本
+2) 薄广告目录：namespace + 一行短描述
+3) 完整 LoadableToolSpec：先扣着，命中再发</div>
+            <div class="hl">
+              <div class="cost">没装的 connector</div>
+              <div class="muted">不进 registry · 不进广告 · 搜不到 · 模型幻想也变不出来</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCENE 1 -->
+      <section class="scene" data-scene="1" aria-label="第2幕">
+        <div class="scene-title">
+          <h2>2 · 模型实际看见什么</h2>
+          <div class="biz">两通道：tools = 可调用说明书；文本 = 薄目录广告。Deferred = 目录可见，说明书先不发。</div>
+        </div>
+        <div class="grid split">
+          <div class="card">
+            <h3>通道 A · tools 数组（可调用）</h3>
+            <p class="muted">只有这些能被 function call</p>
+            <div class="tool-row">shell</div>
+            <div class="tool-row">apply_patch</div>
+            <div class="tool-row">update_plan</div>
+            <div class="tool-row search">tool_search ← 发现入口</div>
+            <p class="cost">没有 jira.create_issue</p>
+            <p class="cost">没有 slack.post_message</p>
+            <p class="cost">没有 20×N 份 schema</p>
+            <p class="ok">体积：核心工具 + 1 个 search ≈ 几千 tokens</p>
+            <p class="muted">模型现在：能改代码，不能直接调 Jira API</p>
+          </div>
+          <div class="card">
+            <h3>通道 B · 文本广告（world-state / description）</h3>
+            <p class="muted">整表大约一两百 tokens，不是 20 份 API 文档</p>
+            <div class="mono" style="background:#0b1220;padding:12px;border-radius:8px;border:1px solid #2a3a5c">## Deferred tool namespaces
+- github: Repos, PRs, issues, checks
+- gitlab: MRs and pipelines
+- jira: Issues, sprints, transitions   ← 有这行才「知道有 Jira」
+- linear: Product issues and cycles
+- slack: Channels and messages
+- notion / confluence / google_drive …
+- sentry / datadog / pagerduty …
+- stripe / snowflake / bigquery …
+- figma / playwright / browserbase / postgres / filesystem</div>
+            <div class="label">tool_search 自己的 description</div>
+            <div class="bubble">Some tools were not provided upfront — use tool_search to discover them.</div>
+            <p class="ok" style="margin-top:12px">模型拼装：薄目录 + search 入口 + 用户意图 · 不是两眼一抹黑，也不是全量 schema</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCENE 2 -->
+      <section class="scene" data-scene="2" aria-label="第3幕">
+        <div class="scene-title">
+          <h2>3 · 用户要建 Jira</h2>
+          <div class="biz">意图对上广告里的 jira 桶 → 本轮只能调 tool_search，还不能直接 create_issue。</div>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <h3>用户消息</h3>
+            <div class="bubble">把 login 超时这个 bug 建一张 Jira，priority High，打上 backend 标签。</div>
+            <div class="label">模型本轮推理（示意）</div>
+            <div class="mono">1. 任务要写 Jira issue
+2. tools 数组：无 jira.* 可调
+3. 广告目录：有 “jira: Issues…”
+4. 结论：先 tool_search，不能瞎编参数
+5. 改代码工具这轮用不上 → 不调 shell</div>
+            <div class="hl">
+              <div class="label" style="margin-top:0">若广告里没有 jira？</div>
+              <p class="ok">正确：告诉用户未连接，或空搜一次后停</p>
+              <p class="cost">错误：幻想参数硬调（runtime 也会拒未注册工具）</p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>本轮 tools 仍只有这些</h3>
+            <div class="tool-row">shell</div>
+            <div class="tool-row">apply_patch</div>
+            <div class="tool-row search">tool_search ← 将调用</div>
+            <div class="label">为什么不直接调 jira？</div>
+            <p class="muted">schema 还没进 tools 数组。协议要求：先看见 definition，再 function call。</p>
+            <p class="muted">「下一拍」= 同一次 agent loop 的下一次 model completion，不是用户再发一句。</p>
+            <div class="hl">
+              <div class="label" style="margin-top:0">业务含义</div>
+              <p class="ok">主路径改代码的多数 turn：不付 Jira schema 税</p>
+              <p class="ok">偶发要连 Jira：愿意多 1 拍 discovery</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCENE 3 -->
+      <section class="scene" data-scene="3" aria-label="第4幕">
+        <div class="scene-title">
+          <h2>4 · tool_search + BM25</h2>
+          <div class="biz">本地检索已注册 deferred 元数据；返回完整 schema，不是又吐一遍名字。</div>
+        </div>
+        <div class="grid three">
+          <div class="card">
+            <h3>模型发出</h3>
+            <div class="mono">tool_search({
+  query: "jira create issue high",
+  limit: 5
+})</div>
+            <div class="label">Host 侧</div>
+            <p class="muted">BM25 over search_text · 不打 embedding</p>
+            <div class="mono">语料（已注册 Deferred）：
+"jira create_issue project summary…"
+"jira search_issues jql…"
+"slack post_message channel…"
+"github create_pull_request…"</div>
+            <p class="ok" style="margin-top:10px">空结果 = 白跑一拍，变不出未注册工具</p>
+          </div>
+          <div class="card">
+            <h3>BM25 排序（示意）</h3>
+            <div class="score top"><span>jira.create_issue</span><div class="bar"><i style="width:95%"></i></div><span>12.4</span></div>
+            <div class="score"><span>jira.search_issues</span><div class="bar"><i style="width:55%"></i></div><span>6.1</span></div>
+            <div class="score"><span>jira.add_comment</span><div class="bar"><i style="width:30%"></i></div><span>3.2</span></div>
+            <div class="score dim"><span>linear.create_issue</span><div class="bar"><i style="width:18%"></i></div><span>2.0</span></div>
+            <div class="score dim"><span>github.create_issue</span><div class="bar"><i style="width:12%"></i></div><span>1.4</span></div>
+            <div class="score dim"><span>slack.post_message</span><div class="bar"><i style="width:5%"></i></div><span>0.3</span></div>
+            <p class="muted">limit=5 → 只 promote 前几名；其余 deferred 继续沉睡</p>
+          </div>
+          <div class="card">
+            <h3>ToolSearchOutput</h3>
+            <p class="muted">回写 transcript · 完整 schema</p>
+            <div class="mono" style="background:#0b1220;padding:12px;border-radius:8px;border:1px solid #3dcf8e">tools: [
+  Function {
+    name: jira.create_issue
+    desc: Create a Jira…
+    params: {
+      project: string
+      summary: string
+      priority: string
+      labels: string[]
+    }
+  }
+  …
+]</div>
+            <div class="label">协议语义</div>
+            <p class="ok">exposes matching tools for the next model call</p>
+            <p class="muted">同一次 agent loop · 下一拍</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCENE 4 -->
+      <section class="scene" data-scene="4" aria-label="第5幕">
+        <div class="scene-title">
+          <h2>5 · 下一拍真正调用</h2>
+          <div class="biz">schema 进 tools 后才能 call；执行仍走 router/MCP/policy，和 Direct 一样受控。</div>
+        </div>
+        <div class="grid three">
+          <div class="card">
+            <h3>下一拍 tools 数组</h3>
+            <div class="tool-row">shell</div>
+            <div class="tool-row">apply_patch</div>
+            <div class="tool-row">tool_search</div>
+            <div class="tool-row promoted">jira.create_issue ← 新可见</div>
+            <div class="tool-row search" style="animation:none">jira.search_issues</div>
+            <div class="tool-row search" style="animation:none">jira.add_comment</div>
+            <p class="cost" style="margin-top:12px">其余 17 个 MCP 的 schema？</p>
+            <p class="ok">仍然不在 tools 里 · 继续沉睡</p>
+            <p class="muted">要 slack 再 search 一次即可</p>
+          </div>
+          <div class="card">
+            <h3>模型真正调用</h3>
+            <div class="mono">jira.create_issue({
+  project: "APP",
+  summary: "login timeout",
+  priority: "High",
+  labels: ["backend"]
+})</div>
+            <div class="label">执行路径</div>
+            <div class="mono">router → handler → MCP server
+policy / sandbox 该拦还拦</div>
+            <p class="muted">Deferred 只改「何时看见 schema」，不改「执行是否受控」</p>
+            <p class="ok">结果回注 → 回复用户 issue key</p>
+          </div>
+          <div class="card">
+            <h3>整段时序账本</h3>
+            <ul class="timeline">
+              <li>T0 装 20 MCP · Deferred</li>
+              <li>T1 广告薄目录 + Direct 工具</li>
+              <li>T2 用户：建 Jira</li>
+              <li class="now">T3 tool_search（上一拍）</li>
+              <li class="now">T4 BM25 → schema 回写</li>
+              <li class="now">T5 本拍 call create_issue</li>
+              <li>T6 MCP 执行 · 回 issue key</li>
+            </ul>
+            <div class="hl">
+              <p class="cost">少付：~20 MCP 全 schema × 每轮</p>
+              <p class="ok">多付：1 次 search 模型步</p>
+              <p class="ok">主路径改代码 turn：连 search 都不必走</p>
+            </div>
+            <p class="ok" style="margin-top:12px">业务一句话：扩展可长 · 默认改码面干净</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="footer-note">
+      操作版：本页 HTML · 自动循环无控件版：<code>deferred-tools-demo.svg</code> ·
+      建议面试讲解用本页：默认暂停，你控节奏。
+    </p>
+  </div>
+
+  <script>
+    (() => {
+      const TOTAL = 5;
+      const DWELL_MS = 5000; // 自动播放时每幕停留
+      let index = 0;
+      let playing = false;
+      let startedAt = 0;
+      let raf = 0;
+      let remainOnResume = DWELL_MS;
+
+      const scenes = [...document.querySelectorAll(".scene")];
+      const stepButtons = document.getElementById("stepButtons");
+      const btnPlay = document.getElementById("btnPlay");
+      const btnPrev = document.getElementById("btnPrev");
+      const btnNext = document.getElementById("btnNext");
+      const btnRestart = document.getElementById("btnRestart");
+      const progressBar = document.getElementById("progressBar");
+      const status = document.getElementById("status");
+      const body = document.body;
+
+      const TITLES = [
+        "1 注册 20 个 MCP",
+        "2 模型看见什么",
+        "3 用户要 Jira",
+        "4 tool_search",
+        "5 下一拍调用",
+      ];
+
+      TITLES.forEach((title, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "step-btn" + (i === 0 ? " active" : "");
+        b.textContent = title;
+        b.setAttribute("role", "tab");
+        b.setAttribute("aria-selected", i === 0 ? "true" : "false");
+        b.addEventListener("click", () => {
+          pause();
+          go(i, true);
+        });
+        stepButtons.appendChild(b);
+      });
+      const stepBtns = [...stepButtons.querySelectorAll(".step-btn")];
+
+      function render() {
+        scenes.forEach((s, i) => s.classList.toggle("active", i === index));
+        stepBtns.forEach((b, i) => {
+          b.classList.toggle("active", i === index);
+          b.classList.toggle("done", i < index);
+          b.setAttribute("aria-selected", i === index ? "true" : "false");
+        });
+        btnPrev.disabled = index === 0 && !playing;
+        btnNext.disabled = index === TOTAL - 1 && !playing;
+        const mode = playing ? "播放中" : "暂停";
+        status.innerHTML = `第 <strong>${index + 1}</strong> / ${TOTAL} 幕 · ${mode} · 每幕 <strong>${DWELL_MS / 1000}s</strong>`;
+        body.classList.toggle("is-paused", !playing);
+        btnPlay.textContent = playing ? "⏸ 暂停" : "▶ 播放";
+        btnPlay.classList.toggle("playing", playing);
+        btnPlay.setAttribute("aria-pressed", playing ? "true" : "false");
+      }
+
+      function setProgress(pct) {
+        progressBar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+      }
+
+      function go(i, resetProgress) {
+        index = Math.max(0, Math.min(TOTAL - 1, i));
+        if (resetProgress) {
+          remainOnResume = DWELL_MS;
+          startedAt = performance.now();
+          setProgress(playing ? 0 : 0);
+        }
+        render();
+      }
+
+      function tick(now) {
+        if (!playing) return;
+        const elapsed = now - startedAt;
+        const pct = (elapsed / DWELL_MS) * 100;
+        setProgress(pct);
+        if (elapsed >= DWELL_MS) {
+          if (index >= TOTAL - 1) {
+            // 最后一幕播完自动停，方便讲解收尾
+            pause();
+            setProgress(100);
+            return;
+          }
+          index += 1;
+          startedAt = now;
+          remainOnResume = DWELL_MS;
+          setProgress(0);
+          render();
+        }
+        raf = requestAnimationFrame(tick);
+      }
+
+      function play() {
+        if (playing) return;
+        // 若已在最后一幕且进度满，从第一幕重来
+        if (index === TOTAL - 1 && progressBar.style.width === "100%") {
+          index = 0;
+          remainOnResume = DWELL_MS;
+        }
+        playing = true;
+        startedAt = performance.now() - (DWELL_MS - remainOnResume);
+        render();
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
+      }
+
+      function pause() {
+        if (playing) {
+          const elapsed = performance.now() - startedAt;
+          remainOnResume = Math.max(0, DWELL_MS - elapsed);
+        }
+        playing = false;
+        cancelAnimationFrame(raf);
+        render();
+      }
+
+      function toggle() {
+        playing ? pause() : play();
+      }
+
+      btnPlay.addEventListener("click", toggle);
+      btnPrev.addEventListener("click", () => {
+        pause();
+        go(index - 1, true);
+        setProgress(0);
+      });
+      btnNext.addEventListener("click", () => {
+        pause();
+        go(index + 1, true);
+        setProgress(0);
+      });
+      btnRestart.addEventListener("click", () => {
+        pause();
+        go(0, true);
+        setProgress(0);
+        remainOnResume = DWELL_MS;
+      });
+
+      window.addEventListener("keydown", (e) => {
+        const tag = (e.target && e.target.tagName) || "";
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (e.code === "Space") {
+          e.preventDefault();
+          toggle();
+        } else if (e.key === "ArrowRight" || e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          pause();
+          go(index + 1, true);
+          setProgress(0);
+        } else if (e.key === "ArrowLeft" || e.key === "p" || e.key === "P") {
+          e.preventDefault();
+          pause();
+          go(index - 1, true);
+          setProgress(0);
+        } else if (e.key === "r" || e.key === "R") {
+          pause();
+          go(0, true);
+          setProgress(0);
+        } else if (e.key >= "1" && e.key <= "5") {
+          pause();
+          go(Number(e.key) - 1, true);
+          setProgress(0);
+        }
+      });
+
+      // 默认暂停在第 1 幕
+      pause();
+      go(0, true);
+      setProgress(0);
+    })();
+  </script>
+</body>
+</html>

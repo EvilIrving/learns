@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent Loop：Prompt + Tools 全链路（Grok 主路径）</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121a24;
+    --card: #182231;
+    --border: #2a3a50;
+    --text: #e8eef7;
+    --muted: #8fa0b8;
+    --user: #34d399;
+    --sys: #60a5fa;
+    --tool: #c084fc;
+    --model: #f472b6;
+    --net: #38bdf8;
+    --exec: #fbbf24;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --accent: #3d9cf0;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "SF Pro Text", "PingFang SC", "Helvetica Neue", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  header h1 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
+  header p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 220px 1fr 380px;
+  }
+  @media (max-width: 1100px) {
+    .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .nav { max-height: 140px; overflow: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .side { border-left: none; border-top: 1px solid var(--border); max-height: 42vh; }
+  }
+
+  /* Left step nav */
+  .nav {
+    border-right: 1px solid var(--border);
+    background: #0e141c;
+    overflow-y: auto;
+    padding: 10px 8px;
+  }
+  .nav button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--muted);
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1.35;
+  }
+  .nav button:hover { background: var(--card); color: var(--text); }
+  .nav button.active {
+    background: #16304a;
+    border-color: #2d6da8;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .nav button .n {
+    display: inline-block;
+    width: 20px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Center stage */
+  .stage {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  .svg-wrap {
+    flex: 1;
+    min-height: 0;
+    padding: 12px 16px 8px;
+    overflow: auto;
+  }
+  .svg-wrap svg {
+    width: 100%;
+    max-width: 980px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+  }
+  .controls {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .controls button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .controls button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #061018;
+    font-weight: 650;
+  }
+  .controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .progress {
+    flex: 1;
+    min-width: 120px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), #5eead4);
+    transition: width 0.25s ease;
+  }
+  .step-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* Right panel */
+  .side {
+    border-left: 1px solid var(--border);
+    background: #0e141c;
+    overflow-y: auto;
+    padding: 14px 16px 28px;
+  }
+  .side .meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  .side h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: #7dd3fc;
+    line-height: 1.35;
+  }
+  .side .body {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .side .body p { margin: 0 0 10px; }
+  .side .body h3 {
+    margin: 14px 0 6px;
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--warn);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .side .body ol, .side .body ul {
+    margin: 0 0 10px;
+    padding-left: 18px;
+  }
+  .side .body li { margin-bottom: 5px; }
+  .side code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    background: #0a1018;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #c9d7ef;
+  }
+  .side .path {
+    display: block;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: #9eb6d4;
+    background: #0a1018;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0 12px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+  }
+  .side .path .pl {
+    display: block;
+    margin: 0 0 4px;
+    padding-left: 0;
+  }
+  .side .path .pl:last-child { margin-bottom: 0; }
+  .side .path .pk {
+    color: #6b829e;
+    font-size: 10px;
+    display: block;
+    margin-bottom: 6px;
+    font-family: system-ui, sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .side .why {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent);
+    background: #121a26;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #d0dbea;
+  }
+  .callout {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #3a4a20;
+    background: #141c10;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #c5d4a8;
+  }
+  .callout strong { color: var(--warn); }
+  .codex {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #3a2a50;
+    background: #141018;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #c4b5d8;
+  }
+  .codex strong { color: #d8b4fe; }
+
+  /* SVG state */
+  .node { opacity: 0.22; transition: opacity 0.3s ease, filter 0.3s ease; }
+  .node.hl { opacity: 1; filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.35)); }
+  .node.hl-soft { opacity: 0.55; }
+  .edge { opacity: 0.12; transition: opacity 0.3s ease; }
+  .edge.hl { opacity: 1; }
+  .edge.hl path.line { stroke-dasharray: 8 6; animation: dash 0.7s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -28; } }
+  .edge-label { opacity: 0.15; transition: opacity 0.3s ease; }
+  .edge-label.hl { opacity: 1; }
+  .packet { opacity: 0; pointer-events: none; }
+  .lane-title { fill: #6b7c94; font-size: 11px; font-family: system-ui, sans-serif; }
+  .box-title { fill: #e8eef7; font-size: 12.5px; font-weight: 650; font-family: system-ui, sans-serif; }
+  .box-sub { fill: #8fa0b8; font-size: 10px; font-family: system-ui, sans-serif; }
+  .mono { fill: #c9d7ef; font-size: 10px; font-family: ui-monospace, Menlo, monospace; }
+  .arrow-lbl {
+    fill: #e8eef7;
+    font-size: 10.5px;
+    font-weight: 650;
+    font-family: system-ui, sans-serif;
+  }
+  .arrow-lbl-bg { fill: #0b0f14; stroke-width: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coding Agent Loop：从用户输入 → 组装请求 → 模型响应 → 拆分/执行 → 回写（Grok 主路径）</h1>
+  <p>
+    核心心智：<b style="color:#60a5fa">通道 A = messages/transcript（文本指令+历史）</b> ·
+    <b style="color:#c084fc">通道 B = tools[]（可调用按钮的 JSON schema）</b> ·
+    <b style="color:#f472b6">响应再拆成 text + tool_calls</b>。
+    左侧点步骤，中间看流向，右侧是对应源码处理。
+  </p>
+</header>
+
+<div class="main">
+  <nav class="nav" id="nav"></nav>
+
+  <div class="stage">
+    <div class="svg-wrap">
+      <!-- 更宽画布 + 更大间距：中段不再叠在一起 -->
+      <svg id="scene" viewBox="0 0 1240 860" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="m-user" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#34d399"/>
+          </marker>
+          <marker id="m-sys" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#60a5fa"/>
+          </marker>
+          <marker id="m-tool" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#c084fc"/>
+          </marker>
+          <marker id="m-net" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#38bdf8"/>
+          </marker>
+          <marker id="m-model" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#f472b6"/>
+          </marker>
+          <marker id="m-exec" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/>
+          </marker>
+          <marker id="m-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#4ade80"/>
+          </marker>
+          <filter id="glow"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <linearGradient id="g-req" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#c084fc"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Lanes -->
+        <text x="32" y="28" class="lane-title">本机 · Agent Runtime（Session / Shell / ChatState / ToolBridge）</text>
+        <text x="900" y="28" class="lane-title">远端 · Model API</text>
+        <line x1="860" y1="40" x2="860" y2="840" stroke="#2a3a50" stroke-dasharray="3 7" stroke-width="1.2"/>
+
+        <!--
+          布局（留白加大，避免中段叠字）：
+          Col1 x=40:  ① ② ⑩
+          Col2 x=280: ③ ④
+          Col3 x=560: ⑤
+          Col4 x=880: ⑥
+          Col5 x=1050: ⑦
+          Row bottom: ⑧ ⑨ ⑪
+        -->
+
+        <!-- ① User -->
+        <g id="n1" class="node">
+          <rect x="40" y="56" width="170" height="72" rx="12" fill="#0c2418" stroke="#34d399" stroke-width="2"/>
+          <text x="125" y="88" text-anchor="middle" class="box-title">① 用户输入</text>
+          <text x="125" y="108" text-anchor="middle" class="box-sub">TUI / CLI / ACP</text>
+        </g>
+
+        <!-- ② ChatState -->
+        <g id="n2" class="node">
+          <rect x="40" y="200" width="170" height="120" rx="12" fill="#0c1a28" stroke="#60a5fa" stroke-width="2"/>
+          <text x="125" y="230" text-anchor="middle" class="box-title">② ChatState</text>
+          <text x="125" y="252" text-anchor="middle" class="box-sub">system（已注入）</text>
+          <text x="125" y="270" text-anchor="middle" class="box-sub">history / transcript</text>
+          <text x="125" y="288" text-anchor="middle" class="box-sub">user / tool results</text>
+          <text x="125" y="306" text-anchor="middle" class="mono">通道 A 底座</text>
+        </g>
+
+        <!-- ③ Pre-turn — 单独一行，不压 ④ -->
+        <g id="n3" class="node">
+          <rect x="280" y="56" width="200" height="100" rx="12" fill="#1a180c" stroke="#fbbf24" stroke-width="2"/>
+          <text x="380" y="86" text-anchor="middle" class="box-title">③ Turn 前置处理</text>
+          <text x="380" y="108" text-anchor="middle" class="box-sub">interjection / skills</text>
+          <text x="380" y="126" text-anchor="middle" class="box-sub">memory / MCP / compact / auth</text>
+        </g>
+
+        <!-- ④ Tools — 与 ③ 拉开，y 从 220 起 -->
+        <g id="n4" class="node">
+          <rect x="280" y="220" width="200" height="110" rx="12" fill="#1a1230" stroke="#c084fc" stroke-width="2"/>
+          <text x="380" y="252" text-anchor="middle" class="box-title">④ 准备 Tools</text>
+          <text x="380" y="274" text-anchor="middle" class="box-sub">prepare_tool_definitions</text>
+          <text x="380" y="292" text-anchor="middle" class="box-sub">→ ToolSpec[]</text>
+          <text x="380" y="312" text-anchor="middle" class="mono">通道 B</text>
+        </g>
+
+        <!-- ⑤ Build request — 中心，左右各留缝 -->
+        <g id="n5" class="node">
+          <rect x="560" y="140" width="230" height="180" rx="12" fill="#101c2c" stroke="#38bdf8" stroke-width="2.2"/>
+          <text x="675" y="170" text-anchor="middle" class="box-title">⑤ 组装 Request</text>
+          <text x="675" y="190" text-anchor="middle" class="box-sub">build_request / BuildConversationRequest</text>
+          <rect x="580" y="210" width="90" height="88" rx="8" fill="#0c1a28" stroke="#60a5fa" stroke-width="1.5"/>
+          <text x="625" y="236" text-anchor="middle" class="mono" fill="#60a5fa">通道 A</text>
+          <text x="625" y="256" text-anchor="middle" class="box-sub">items[]</text>
+          <text x="625" y="274" text-anchor="middle" class="box-sub">messages</text>
+          <text x="625" y="290" text-anchor="middle" class="box-sub">prune/repair</text>
+          <rect x="680" y="210" width="90" height="88" rx="8" fill="#1a1230" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="725" y="236" text-anchor="middle" class="mono" fill="#c084fc">通道 B</text>
+          <text x="725" y="256" text-anchor="middle" class="box-sub">tools[]</text>
+          <text x="725" y="274" text-anchor="middle" class="box-sub">hosted?</text>
+          <text x="725" y="290" text-anchor="middle" class="box-sub">schema</text>
+        </g>
+
+        <!-- ⑥ Sampler -->
+        <g id="n6" class="node">
+          <rect x="880" y="175" width="120" height="80" rx="12" fill="#0a1824" stroke="#38bdf8" stroke-width="2"/>
+          <text x="940" y="210" text-anchor="middle" class="box-title">⑥ Sampler</text>
+          <text x="940" y="232" text-anchor="middle" class="box-sub">HTTPS stream</text>
+        </g>
+
+        <!-- ⑦ Model -->
+        <g id="n7" class="node">
+          <rect x="1060" y="155" width="140" height="110" rx="12" fill="#2a1020" stroke="#f472b6" stroke-width="2.2"/>
+          <text x="1130" y="190" text-anchor="middle" class="box-title">⑦ 模型</text>
+          <text x="1130" y="212" text-anchor="middle" class="box-sub">读 A+B</text>
+          <text x="1130" y="230" text-anchor="middle" class="box-sub">生成输出</text>
+          <text x="1130" y="248" text-anchor="middle" class="box-sub">stream events</text>
+        </g>
+
+        <!-- ⑧ Parse — 下方单独一层，y=420 -->
+        <g id="n8" class="node">
+          <rect x="400" y="420" width="320" height="140" rx="12" fill="#1c1018" stroke="#f472b6" stroke-width="2.2"/>
+          <text x="560" y="450" text-anchor="middle" class="box-title">⑧ 解析响应 · 拆两路</text>
+          <text x="560" y="470" text-anchor="middle" class="box-sub">response.tool_calls() / items / fallback_text</text>
+          <rect x="430" y="490" width="120" height="50" rx="8" fill="#0c2418" stroke="#34d399" stroke-width="1.5"/>
+          <text x="490" y="512" text-anchor="middle" class="box-title" font-size="12">文本 text</text>
+          <text x="490" y="528" text-anchor="middle" class="box-sub">UI / transcript</text>
+          <rect x="570" y="490" width="120" height="50" rx="8" fill="#1a1230" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="630" y="512" text-anchor="middle" class="box-title" font-size="12">tool_calls</text>
+          <text x="630" y="528" text-anchor="middle" class="box-sub">name + args JSON</text>
+        </g>
+
+        <!-- ⑨ Exec — 右下，与 ⑧ 隔开 -->
+        <g id="n9" class="node">
+          <rect x="800" y="440" width="200" height="120" rx="12" fill="#1a180c" stroke="#fbbf24" stroke-width="2"/>
+          <text x="900" y="480" text-anchor="middle" class="box-title">⑨ 执行工具</text>
+          <text x="900" y="504" text-anchor="middle" class="box-sub">execute_tool_calls</text>
+          <text x="900" y="522" text-anchor="middle" class="box-sub">prepare → dispatch</text>
+          <text x="900" y="540" text-anchor="middle" class="box-sub">本机 / MCP / 并行锁</text>
+        </g>
+
+        <!-- ⑩ Writeback -->
+        <g id="n10" class="node">
+          <rect x="40" y="460" width="170" height="110" rx="12" fill="#0c1a28" stroke="#4ade80" stroke-width="2"/>
+          <text x="125" y="498" text-anchor="middle" class="box-title">⑩ 结果回写</text>
+          <text x="125" y="520" text-anchor="middle" class="box-sub">push_tool_result</text>
+          <text x="125" y="538" text-anchor="middle" class="box-sub">进 ChatState</text>
+          <text x="125" y="556" text-anchor="middle" class="mono">通道 A 变长</text>
+        </g>
+
+        <!-- ⑪ Loop — 最底一行 -->
+        <g id="n11" class="node">
+          <rect x="280" y="680" width="520" height="100" rx="12" fill="#14140c" stroke="#fbbf24" stroke-width="2"/>
+          <text x="540" y="716" text-anchor="middle" class="box-title">⑪ Agent Loop 判定</text>
+          <text x="540" y="740" text-anchor="middle" class="box-sub">有 tool_calls → continue 再请求 · 无 → Completed / TodoGate / max_turns</text>
+          <text x="540" y="760" text-anchor="middle" class="box-sub">stationarity / permission / cancel / structured output</text>
+        </g>
+
+        <!-- ========== EDGES：正交折线，标签放在空隙里 ========== -->
+
+        <!-- 1→2 垂直 -->
+        <g id="e12" class="edge">
+          <path class="line" d="M125 128 V200" fill="none" stroke="#34d399" stroke-width="2.5" marker-end="url(#m-user)"/>
+        </g>
+        <g id="l12" class="edge-label">
+          <rect class="arrow-lbl-bg" x="132" y="148" width="88" height="18" rx="4" stroke="#34d399"/>
+          <text class="arrow-lbl" x="176" y="161" text-anchor="middle" fill="#34d399">append user</text>
+        </g>
+
+        <!-- 2→3 上走再右（绕开 ④） -->
+        <g id="e23" class="edge">
+          <path class="line" d="M210 230 H245 V106 H280" fill="none" stroke="#fbbf24" stroke-width="2.2" marker-end="url(#m-exec)"/>
+        </g>
+        <g id="l23" class="edge-label">
+          <rect class="arrow-lbl-bg" x="214" y="168" width="62" height="18" rx="4" stroke="#fbbf24"/>
+          <text class="arrow-lbl" x="245" y="181" text-anchor="middle" fill="#fbbf24">前置门闩</text>
+        </g>
+
+        <!-- 2→5 通道 A：从 ChatState 右出，走 ④ 上方空隙进 ⑤ 左 -->
+        <g id="e25" class="edge">
+          <path class="line" d="M210 260 H250 V180 H560" fill="none" stroke="#60a5fa" stroke-width="2.8" marker-end="url(#m-sys)"/>
+        </g>
+        <g id="l25" class="edge-label">
+          <rect class="arrow-lbl-bg" x="300" y="158" width="110" height="18" rx="4" stroke="#60a5fa"/>
+          <text class="arrow-lbl" x="355" y="171" text-anchor="middle" fill="#60a5fa">通道 A · items</text>
+        </g>
+
+        <!-- 3→5 注入：从 ③ 右出，走上方进 ⑤ 顶 -->
+        <g id="e35" class="edge">
+          <path class="line" d="M480 100 H620 V140" fill="none" stroke="#fbbf24" stroke-width="2.2" marker-end="url(#m-exec)"/>
+        </g>
+        <g id="l35" class="edge-label">
+          <rect class="arrow-lbl-bg" x="500" y="78" width="88" height="18" rx="4" stroke="#fbbf24"/>
+          <text class="arrow-lbl" x="544" y="91" text-anchor="middle" fill="#fbbf24">注入 reminder</text>
+        </g>
+
+        <!-- 4→5 通道 B：水平直连，标签在连线下方空隙 -->
+        <g id="e45" class="edge">
+          <path class="line" d="M480 275 H560" fill="none" stroke="#c084fc" stroke-width="2.8" marker-end="url(#m-tool)"/>
+        </g>
+        <g id="l45" class="edge-label">
+          <rect class="arrow-lbl-bg" x="490" y="288" width="70" height="18" rx="4" stroke="#c084fc"/>
+          <text class="arrow-lbl" x="525" y="301" text-anchor="middle" fill="#c084fc">通道 B</text>
+        </g>
+
+        <!-- 5→6 发包 -->
+        <g id="e56" class="edge">
+          <path class="line" d="M790 215 H880" fill="none" stroke="url(#g-req)" stroke-width="3" marker-end="url(#m-net)"/>
+        </g>
+        <g id="l56" class="edge-label">
+          <rect class="arrow-lbl-bg" x="810" y="190" width="46" height="18" rx="4" stroke="#38bdf8"/>
+          <text class="arrow-lbl" x="833" y="203" text-anchor="middle" fill="#38bdf8">发包</text>
+        </g>
+
+        <!-- 6→7 API -->
+        <g id="e67" class="edge">
+          <path class="line" d="M1000 215 H1060" fill="none" stroke="#38bdf8" stroke-width="2.8" marker-end="url(#m-net)"/>
+        </g>
+        <g id="l67" class="edge-label">
+          <rect class="arrow-lbl-bg" x="1010" y="190" width="36" height="18" rx="4" stroke="#38bdf8"/>
+          <text class="arrow-lbl" x="1028" y="203" text-anchor="middle" fill="#38bdf8">API</text>
+        </g>
+
+        <!-- 7→8 stream 回包：右侧下绕，不穿 ⑤ -->
+        <g id="e78" class="edge">
+          <path class="line" d="M1130 265 V380 H560 V420" fill="none" stroke="#f472b6" stroke-width="2.8" marker-end="url(#m-model)"/>
+        </g>
+        <g id="l78" class="edge-label">
+          <rect class="arrow-lbl-bg" x="900" y="350" width="100" height="18" rx="4" stroke="#f472b6"/>
+          <text class="arrow-lbl" x="950" y="363" text-anchor="middle" fill="#f472b6">stream 回包</text>
+        </g>
+
+        <!-- 8 文本 → 10 -->
+        <g id="e8t" class="edge">
+          <path class="line" d="M430 515 H210" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#m-user)" stroke-dasharray="5 4"/>
+        </g>
+        <g id="l8t" class="edge-label">
+          <rect class="arrow-lbl-bg" x="260" y="490" width="80" height="18" rx="4" stroke="#34d399"/>
+          <text class="arrow-lbl" x="300" y="503" text-anchor="middle" fill="#34d399">文本进 UI</text>
+        </g>
+
+        <!-- 8 tool → 9 -->
+        <g id="e89" class="edge">
+          <path class="line" d="M720 515 H800" fill="none" stroke="#c084fc" stroke-width="2.8" marker-end="url(#m-tool)"/>
+        </g>
+        <g id="l89" class="edge-label">
+          <rect class="arrow-lbl-bg" x="735" y="490" width="50" height="18" rx="4" stroke="#c084fc"/>
+          <text class="arrow-lbl" x="760" y="503" text-anchor="middle" fill="#c084fc">调度</text>
+        </g>
+
+        <!-- 9 → 10 回写：下方绕行，不穿 ⑧ -->
+        <g id="e910" class="edge">
+          <path class="line" d="M800 530 H740 V600 H125 V570" fill="none" stroke="#4ade80" stroke-width="2.6" marker-end="url(#m-ok)"/>
+        </g>
+        <g id="l910" class="edge-label">
+          <rect class="arrow-lbl-bg" x="300" y="608" width="100" height="18" rx="4" stroke="#4ade80"/>
+          <text class="arrow-lbl" x="350" y="621" text-anchor="middle" fill="#4ade80">tool result 回写</text>
+        </g>
+
+        <!-- 10 → 2 并入历史 -->
+        <g id="e102" class="edge">
+          <path class="line" d="M125 460 V320" fill="none" stroke="#4ade80" stroke-width="2.4" marker-end="url(#m-ok)"/>
+        </g>
+        <g id="l102" class="edge-label">
+          <rect class="arrow-lbl-bg" x="132" y="370" width="70" height="18" rx="4" stroke="#4ade80"/>
+          <text class="arrow-lbl" x="167" y="383" text-anchor="middle" fill="#4ade80">并入历史</text>
+        </g>
+
+        <!-- 8 → 11 无工具？ -->
+        <g id="e811" class="edge">
+          <path class="line" d="M560 560 V680" fill="none" stroke="#fbbf24" stroke-width="2.2" marker-end="url(#m-exec)"/>
+        </g>
+        <g id="l811" class="edge-label">
+          <rect class="arrow-lbl-bg" x="568" y="600" width="64" height="18" rx="4" stroke="#fbbf24"/>
+          <text class="arrow-lbl" x="600" y="613" text-anchor="middle" fill="#fbbf24">无工具？</text>
+        </g>
+
+        <!-- 11 → 5 continue：左侧空隙上绕，不穿 ⑧ -->
+        <g id="e115" class="edge">
+          <path class="line" d="M320 680 V360 H520 V320" fill="none" stroke="#fbbf24" stroke-width="2.4" marker-end="url(#m-exec)"/>
+        </g>
+        <g id="l115" class="edge-label">
+          <rect class="arrow-lbl-bg" x="328" y="400" width="100" height="18" rx="4" stroke="#fbbf24"/>
+          <text class="arrow-lbl" x="378" y="413" text-anchor="middle" fill="#fbbf24">continue 再组装</text>
+        </g>
+
+        <!-- Flying packets -->
+        <g id="pkt-req" class="packet" filter="url(#glow)">
+          <rect width="64" height="24" rx="6" fill="#12304a" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="32" y="16" text-anchor="middle" class="mono" font-size="10">Request</text>
+        </g>
+        <g id="pkt-res" class="packet" filter="url(#glow)">
+          <rect width="70" height="24" rx="6" fill="#3a1530" stroke="#f472b6" stroke-width="1.5"/>
+          <text x="35" y="16" text-anchor="middle" class="mono" font-size="10">Response</text>
+        </g>
+        <g id="pkt-tool" class="packet" filter="url(#glow)">
+          <rect width="78" height="24" rx="6" fill="#2a1a4a" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="39" y="16" text-anchor="middle" class="mono" font-size="10">tool result</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="controls">
+      <button id="btn-prev">← 上一步</button>
+      <button id="btn-next" class="primary">下一步 →</button>
+      <button id="btn-play">自动播放</button>
+      <button id="btn-reset">重置</button>
+      <div class="progress"><i id="bar"></i></div>
+      <span class="step-label" id="step-num">步骤 0 / 0</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="meta" id="side-meta">—</div>
+    <h2 id="side-title">—</h2>
+    <div class="body" id="side-body"></div>
+    <div class="callout" id="side-callout"></div>
+    <div class="codex" id="side-codex"></div>
+  </aside>
+</div>
+
+<script>
+/**
+ * Each step: title, meta, navLabel, nodes[], softNodes[], edges[], labels[],
+ * packet?, body HTML, callout, codex note
+ */
+const steps = [
+  {
+    nav: "0 总览",
+    title: "整条主路径在干什么",
+    meta: "只记数据怎么走",
+    nodes: ["n5", "n8", "n11"],
+    soft: ["n2", "n4", "n7", "n9", "n10"],
+    edges: ["e25", "e45", "e56", "e78", "e89", "e910", "e115"],
+    labels: ["l25", "l45", "l56", "l78", "l89", "l910", "l115"],
+    body: `
+      <div class="why">
+        主路径就一件事：把用户任务变成「对话 + 工具清单」发给模型，把模型的 tool_calls 变成真实读写/命令结果，再塞回对话继续问，直到模型只回文本。
+      </div>
+      <p><b>发给模型的请求两块：</b></p>
+      <ol>
+        <li><b>items</b>：system + 历史 + 用户话 + 已有 tool results</li>
+        <li><b>tools[]</b>：本轮可用工具的 name / description / parameters</li>
+      </ol>
+      <p><b>模型回来拆两块：</b>assistant 文本；tool_calls（name + arguments）。有 tool_calls 就执行、写回 items、再发一轮。</p>
+    `,
+    callout: "侧边栏只讲每个节点的主路径：进什么 → 核心变换 → 出什么。",
+    codex: "<strong>Codex：</strong>同一主路径；请求体叫 Prompt（input + tools）。",
+  },
+  {
+    nav: "1 用户输入",
+    title: "① 用户输入",
+    meta: "进：键入 · 出：用户消息 + 开 turn",
+    nodes: ["n1"],
+    soft: [],
+    edges: [],
+    labels: [],
+    body: `
+      <div class="why"><b>核心：</b>收下用户这一句任务，作为本 turn 的起点。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>从 TUI/CLI/ACP 拿到用户文本（可带图片等）</li>
+        <li>开启一个 turn，后续所有采样/工具都挂在这个 turn 上</li>
+        <li>把这条用户内容交给 ChatState 写入对话</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">xai-grok-shell/.../turn.rs（turn 入口）</span></div>
+    `,
+    callout: "<b>产出：</b>一条 User 消息，turn 已开始。",
+    codex: "<strong>Codex：</strong>用户消息进入 session 后进入采样循环。",
+  },
+  {
+    nav: "2 ChatState",
+    title: "② ChatState",
+    meta: "进：消息 · 出：完整 items 序列",
+    nodes: ["n1", "n2"],
+    soft: [],
+    edges: ["e12"],
+    labels: ["l12"],
+    body: `
+      <div class="why"><b>核心：</b>维护 conversation 列表——这就是通道 A 的实体。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>列表头部是 system（session 启动时已 install）</li>
+        <li><code>push_user_message</code> 把用户话 append 到列表尾</li>
+        <li>列表中按时间顺序积累：assistant 文本、tool_calls、tool results</li>
+        <li>后面组装请求时，从这份列表取出 items</li>
+      </ol>
+      <p><b>system 当初怎么生成：</b>AgentBuilder 收集 os/shell/cwd 等 → PromptContext 模板渲染 → install 进列表。</p>
+      <div class="path"><span class="pk">源码</span><span class="pl">xai-chat-state/（conversation）</span><span class="pl">xai-grok-agent · PromptContext::render / AgentBuilder</span></div>
+    `,
+    callout: "<b>产出：</b>当前完整 items（system + 历史 + 新用户话）。",
+    codex: "<strong>Codex：</strong>history 存 ResponseItem；指令由 base_instructions + world-state 拼进 input。",
+  },
+  {
+    nav: "3 前置处理",
+    title: "③ Turn 前置",
+    meta: "进：当前对话 · 出：补全后的对话",
+    nodes: ["n2", "n3"],
+    soft: ["n5"],
+    edges: ["e23", "e35"],
+    labels: ["l23", "l35"],
+    body: `
+      <div class="why"><b>核心：</b>在组请求前，把本轮模型还需要的上下文写进对话。</div>
+      <p><b>主路径（往 items 里补内容）：</b></p>
+      <ol>
+        <li>用户中途插话 → 写入对话</li>
+        <li>skill 说明 → 写入对话</li>
+        <li>memory 上下文（首轮）→ 写入对话</li>
+        <li>MCP/monitor 等提示 → 写入对话</li>
+        <li>上下文过长时 → 压缩对话（留下可续跑的摘要/保留段）再进入组请求</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">.../turn.rs（build_request 前对 conversation 的注入与 compact）</span></div>
+    `,
+    callout: "<b>产出：</b>已带齐本轮上下文的 items，可以组请求。",
+    codex: "<strong>Codex：</strong>step 前渲染 world-state 分片并并入 input。",
+  },
+  {
+    nav: "4 准备 Tools",
+    title: "④ 准备 Tools",
+    meta: "进：注册表 · 出：tools[]",
+    nodes: ["n4"],
+    soft: ["n5"],
+    edges: ["e45"],
+    labels: ["l45"],
+    body: `
+      <div class="why"><b>核心：</b>生成本轮要交给模型的工具清单 tools[]。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>从 ToolBridge 取出当前启用的工具定义（内置 + 已接入的 MCP 等）</li>
+        <li>按当前模式（如 plan）筛一版「本轮可见」集合</li>
+        <li>转成 API 形态 <code>ToolSpec</code>：name、description、parameters（JSON Schema）</li>
+        <li>需要时附上 hosted tools（由服务端执行的搜索类工具）</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">.../sampler_turn.rs · prepare_tool_definitions</span><span class="pl">.../turn.rs · turn_base_tool_specs / hosted_tools_for_turn</span></div>
+    `,
+    callout: "<b>产出：</b>本轮 <code>tools[]</code>（+ 可选 hosted_tools）。",
+    codex: "<strong>Codex：</strong><code>build_tool_router</code> → <code>model_visible_specs()</code> 作为 tools。",
+  },
+  {
+    nav: "5 组装 Request",
+    title: "⑤ 组装 Request",
+    meta: "进：items + tools · 出：ConversationRequest",
+    nodes: ["n2", "n4", "n5"],
+    soft: [],
+    edges: ["e25", "e45"],
+    labels: ["l25", "l45"],
+    body: `
+      <div class="why"><b>核心：</b>把通道 A（对话）和通道 B（工具）打成一个请求对象。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>从 ChatState 取出 conversation 作为 items</li>
+        <li>接上一步的 tools[]</li>
+        <li>填采样参数：model、temperature、max_output_tokens、reasoning_effort 等</li>
+        <li>得到 <code>ConversationRequest { items, tools, … }</code></li>
+      </ol>
+      <p>实现里还会对 items 做体积与配对整理（裁过长 tool 结果、对齐 call/result），目的仍是：拿出一份能发给模型的干净 messages + tools。</p>
+      <div class="path"><span class="pk">源码</span><span class="pl">xai-chat-state/.../request_builder.rs · build_conversation_request</span><span class="pl">.../turn.rs · build_request</span></div>
+    `,
+    callout: "<b>产出：</b><code>ConversationRequest</code> = items + tools + 采样参数。",
+    codex: "<strong>Codex：</strong><code>build_prompt</code> → Prompt{ input, tools, base_instructions, … }。",
+  },
+  {
+    nav: "6 Sampler",
+    title: "⑥ Sampler",
+    meta: "进：Request · 出：Response",
+    nodes: ["n5", "n6"],
+    soft: ["n7"],
+    edges: ["e56", "e67"],
+    labels: ["l56", "l67"],
+    packet: { id: "pkt-req", from: [790, 215], to: [940, 215] },
+    body: `
+      <div class="why"><b>核心：</b>把 ConversationRequest 变成模型 API 调用，再把流式结果收成 ConversationResponse。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>把内部 Request 映射成目标协议请求体（Chat Completions / Responses 等）</li>
+        <li>HTTPS 发出，按 stream 收 token / event</li>
+        <li>聚合成 <code>ConversationResponse</code>（有序 items，尾部 Assistant 带 content 与 tool_calls）</li>
+        <li>交回 turn 继续拆</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">.../turn.rs · run_turn_via_sampler</span><span class="pl">xai-grok-sampler/.../request_task.rs</span><span class="pl">xai-grok-sampling-types · 协议映射</span></div>
+    `,
+    callout: "<b>产出：</b><code>ConversationResponse</code>。",
+    codex: "<strong>Codex：</strong>ModelClientSession 流式拿 ResponseEvent。",
+  },
+  {
+    nav: "7 模型",
+    title: "⑦ 模型",
+    meta: "进：items+tools · 出：文本和/或 tool_calls",
+    nodes: ["n6", "n7"],
+    soft: [],
+    edges: ["e67"],
+    labels: ["l67"],
+    packet: { id: "pkt-req", from: [1000, 215], to: [1130, 210] },
+    body: `
+      <div class="why"><b>核心：</b>根据对话与工具清单，决定说什么、调哪些工具。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>读 items：任务、历史、已有工具结果</li>
+        <li>读 tools[]：能调什么、参数长什么样</li>
+        <li>生成：
+          <ul>
+            <li>assistant 文本（对用户说的话）</li>
+            <li>和/或 tool_calls：每个含 id、name、arguments（JSON）</li>
+          </ul>
+        </li>
+      </ol>
+      <p>本机用 <code>ConversationResponse</code> 承接：尾部 Assistant 上挂 content + tool_calls。</p>
+      <div class="path"><span class="pk">结构定义</span><span class="pl">xai-grok-sampling-types/.../conversation.rs · ConversationResponse</span></div>
+    `,
+    callout: "<b>产出：</b>文本 和/或 一组 tool_calls。",
+    codex: "<strong>Codex：</strong>流里产出 message 与 function_call。",
+  },
+  {
+    nav: "8 拆响应",
+    title: "⑧ 解析响应",
+    meta: "进：Response · 出：文本一路 + 调用列表一路",
+    nodes: ["n7", "n8"],
+    soft: ["n10"],
+    edges: ["e78", "e8t"],
+    labels: ["l78", "l8t"],
+    packet: { id: "pkt-res", from: [1130, 265], to: [560, 420] },
+    body: `
+      <div class="why"><b>核心：</b>把模型回包拆开——给人看的字，和要执行的 tool_calls。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>从 response 取 assistant 文本 → 写入 transcript / 推到 UI</li>
+        <li><code>response.tool_calls()</code> 取出调用列表</li>
+        <li>每个 call 整理成内部结构：id、name、arguments</li>
+        <li>有 tool_calls → 交给执行节点；没有 → 本轮可以结束（只回话）</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">.../turn.rs（收到 response 后：记 assistant + 抽 tool_calls）</span><span class="pl">ConversationResponse::tool_calls / assistant 文本</span></div>
+    `,
+    callout: "<b>产出：</b>展示用文本 + 待执行的 tool_calls 列表。",
+    codex: "<strong>Codex：</strong>从 stream 事件抽出 function_call，交执行 runtime。",
+  },
+  {
+    nav: "9 执行工具",
+    title: "⑨ 执行工具",
+    meta: "进：tool_calls · 出：每条 call 的结果内容",
+    nodes: ["n8", "n9"],
+    soft: [],
+    edges: ["e89"],
+    labels: ["l89"],
+    packet: { id: "pkt-tool", from: [720, 515], to: [900, 500] },
+    body: `
+      <div class="why"><b>核心：</b>按 name + arguments 真正调用工具，拿到文件内容/命令输出等结果。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li>解析 arguments JSON，绑定到具体工具 handler</li>
+        <li><code>dispatch_tool</code> → <code>WorkspaceOps::call_tool</code>（或 MCP 工具）执行</li>
+        <li>例如 read_file 读盘、search_replace 改文件、shell 跑命令</li>
+        <li>收集每条 call 的返回文本（工具 stdout / 结构化结果）</li>
+      </ol>
+      <p>并行时对同一文件的写入会串行，避免互相覆盖——仍是为了正确执行，不是旁路。</p>
+      <div class="path"><span class="pk">源码</span><span class="pl">.../tool_calls.rs · execute_tool_calls</span><span class="pl">.../tool_dispatch.rs · dispatch_tool</span></div>
+    `,
+    callout: "<b>产出：</b>每个 call_id 对应一份工具结果内容。",
+    codex: "<strong>Codex：</strong>ToolCallRuntime 执行 handler（含 apply-patch 等）。",
+  },
+  {
+    nav: "10 结果回写",
+    title: "⑩ 结果回写",
+    meta: "进：工具结果 · 出：带 tool results 的 items",
+    nodes: ["n9", "n10", "n2"],
+    soft: ["n5"],
+    edges: ["e910", "e102"],
+    labels: ["l910", "l102"],
+    packet: { id: "pkt-tool", from: [800, 530], to: [125, 530] },
+    body: `
+      <div class="why"><b>核心：</b>把工具结果写回 conversation，成为下一轮模型的输入。</div>
+      <p><b>主路径：</b></p>
+      <ol>
+        <li><code>push_tool_result</code>：按 call id 把结果文本 append 进 items</li>
+        <li>对话顺序变为：… → assistant(tool_calls) → tool results</li>
+        <li>下一轮组装 Request 时，这些结果自然出现在通道 A 里</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">ChatStateHandle::push_tool_result</span><span class="pl">turn.rs 执行后写回</span></div>
+    `,
+    callout: "<b>产出：</b>已含 tool results 的 items，可再组请求。",
+    codex: "<strong>Codex：</strong>function_call_output 写入 history。",
+  },
+  {
+    nav: "11 Loop",
+    title: "⑪ Loop 判定",
+    meta: "进：本轮结果 · 出：再采样 或 结束",
+    nodes: ["n8", "n10", "n11", "n5", "n2"],
+    soft: ["n4"],
+    edges: ["e811", "e115", "e25", "e45", "e102"],
+    labels: ["l811", "l115", "l25", "l45", "l102"],
+    body: `
+      <div class="why"><b>核心：</b>看模型还要不要工具——要就再跑一轮组装/采样，不要就结束 turn。</div>
+      <p><b>主路径两岔：</b></p>
+      <ol>
+        <li><b>有 tool_calls（且已执行写回）</b> → continue：带着新 items 再 prepare tools → build_request → sample</li>
+        <li><b>只有文本、无 tool_calls</b> → 结束 turn，把最终回答交给用户</li>
+      </ol>
+      <div class="path"><span class="pk">源码</span><span class="pl">.../turn.rs · loop：有 tool 继续 / 无 tool 完成</span></div>
+    `,
+    callout: "<b>产出：</b>下一圈请求，或 turn 结束时的最终文本。",
+    codex: "<strong>Codex：</strong>有 follow-up 工具则继续采样，否则结束。",
+  },
+  {
+    nav: "12 串起来",
+    title: "⑫ 主路径串记",
+    meta: "每个节点只记核心变换",
+    nodes: ["n5", "n8", "n9", "n11"],
+    soft: ["n2", "n4"],
+    edges: ["e25", "e45", "e78", "e89", "e910"],
+    labels: ["l25", "l45", "l78", "l89", "l910"],
+    body: `
+      <div class="why">只记主变换，不记旁路。</div>
+      <ol>
+        <li>用户输入 → User 消息</li>
+        <li>ChatState → items 列表</li>
+        <li>前置 → 补全后的 items</li>
+        <li>准备 Tools → tools[]</li>
+        <li>组装 → ConversationRequest</li>
+        <li>Sampler → ConversationResponse</li>
+        <li>模型 → 文本 + tool_calls</li>
+        <li>解析 → 文本 / 调用列表</li>
+        <li>执行 → 工具结果内容</li>
+        <li>回写 → items 含 tool results</li>
+        <li>判定 → 再采样 或 结束</li>
+      </ol>
+      <p>Grok：system 模板 build 时定；tools 注册表 + turn 快照。Codex：world-state 分片指令；每 turn plan tools。主环一样。</p>
+    `,
+    callout: "主环：组请求 → 采样 → 拆 → 执行 → 写回 →（有工具？）→ 组请求。",
+    codex: "<strong>锚点：</strong>Prompt · build_prompt · build_tool_router · world_state。",
+  },
+];
+
+const $ = (id) => document.getElementById(id);
+let idx = 0;
+let playing = false;
+let timer = null;
+let animToken = 0;
+
+function buildNav() {
+  const nav = $("nav");
+  nav.innerHTML = "";
+  steps.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="n">${String(i).padStart(2, "0")}</span>${s.nav}`;
+    b.onclick = () => { stopPlay(); idx = i; render(); };
+    nav.appendChild(b);
+  });
+}
+
+function clearHl() {
+  document.querySelectorAll(".node").forEach((n) => n.classList.remove("hl", "hl-soft"));
+  document.querySelectorAll(".edge").forEach((e) => e.classList.remove("hl"));
+  document.querySelectorAll(".edge-label").forEach((e) => e.classList.remove("hl"));
+  ["pkt-req", "pkt-res", "pkt-tool"].forEach((id) => {
+    const p = $(id);
+    p.style.opacity = "0";
+  });
+}
+
+function movePacket(id, from, to) {
+  const el = $(id);
+  const token = ++animToken;
+  el.style.opacity = "1";
+  const [x0, y0] = from;
+  const [x1, y1] = to;
+  const t0 = performance.now();
+  const dur = 750;
+  function frame(t) {
+    if (token !== animToken) return;
+    const p = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3);
+    const x = x0 + (x1 - x0) * e - 32;
+    const y = y0 + (y1 - y0) * e - 12;
+    el.setAttribute("transform", `translate(${x}, ${y})`);
+    if (p < 1) requestAnimationFrame(frame);
+  }
+  el.setAttribute("transform", `translate(${x0 - 32}, ${y0 - 12})`);
+  requestAnimationFrame(frame);
+}
+
+function render() {
+  const s = steps[idx];
+  clearHl();
+  (s.nodes || []).forEach((id) => $(id)?.classList.add("hl"));
+  (s.soft || []).forEach((id) => $(id)?.classList.add("hl-soft"));
+  (s.edges || []).forEach((id) => $(id)?.classList.add("hl"));
+  (s.labels || []).forEach((id) => $(id)?.classList.add("hl"));
+  if (s.packet) movePacket(s.packet.id, s.packet.from, s.packet.to);
+
+  $("side-title").textContent = s.title;
+  $("side-meta").textContent = s.meta;
+  $("side-body").innerHTML = s.body;
+  $("side-callout").innerHTML = s.callout;
+  $("side-codex").innerHTML = s.codex;
+  $("step-num").textContent = `步骤 ${idx + 1} / ${steps.length}`;
+  $("bar").style.width = `${((idx + 1) / steps.length) * 100}%`;
+  $("btn-prev").disabled = idx === 0;
+  $("btn-next").disabled = idx === steps.length - 1;
+
+  [...$("nav").children].forEach((b, i) => b.classList.toggle("active", i === idx));
+}
+
+function go(d) {
+  idx = Math.max(0, Math.min(steps.length - 1, idx + d));
+  render();
+}
+function stopPlay() {
+  playing = false;
+  $("btn-play").textContent = "自动播放";
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+
+$("btn-next").onclick = () => { stopPlay(); go(1); };
+$("btn-prev").onclick = () => { stopPlay(); go(-1); };
+$("btn-reset").onclick = () => { stopPlay(); idx = 0; render(); };
+$("btn-play").onclick = () => {
+  if (playing) { stopPlay(); return; }
+  playing = true;
+  $("btn-play").textContent = "暂停";
+  timer = setInterval(() => {
+    if (idx >= steps.length - 1) { stopPlay(); return; }
+    go(1);
+  }, 5500);
+};
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); stopPlay(); go(1); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); stopPlay(); go(-1); }
+});
+
+buildNav();
+render();
+</script>
+</body>
+</html>
